@@ -5,7 +5,7 @@ RM = rm -f
 
 
 .PHONY: all
-all: libcodecA.so
+all: libcodecA.so libcodecB.so encode decode
 
 codecA.o: codecA.c
 	$(CC) ${CFLAGS}  codecA.c
@@ -21,8 +21,21 @@ libcodecB.so: codecB.o
 	$(CC) ${LDFLAGS} codecB.o -o libcodecB.so
 	export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 
+encode.o: encode.c
+	gcc -c encode.c -o encode.o
+
+encode: encode.o
+	gcc encode.o -o encode
+
+decode.o: decode.c
+	gcc -c decode.c -o decode.o
+
+decode: decode.o
+	gcc decode.o -o decode
+
+
+
 
 .PHONY: clean
 clean:
-	rm -rf *.o
-	rm -rf *.so
+	rm -rf *.o *.so *.exe encode decode

@@ -1,7 +1,7 @@
 #define DIFF 'A' - 'a'
 
-void encode(char* str, int size){
-    for(int i = 0; i < size; i++){
+void encode(char* str){
+    for(int i = 0; str[i] != '\0'; i++){
         if(str[i] >= 'a' && str[i] <= 'z'){
             str[i] += DIFF;
         }
@@ -11,6 +11,6 @@ void encode(char* str, int size){
     }
 }
 
-void decode(char* str, int size){
-    encode(str, size);
+void decode(char* str){
+    encode(str);
 }
