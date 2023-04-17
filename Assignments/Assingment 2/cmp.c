@@ -46,6 +46,12 @@ int cmp(char *file_name1, char *file_name2, int flagI){
 }
 
 int main(int argc, char *argv[]){
+    if (argc < 3){
+        printf("to use the program please use this format: ./cmp <file1> <file2>\n");
+        printf("add -i to ignore lower/upper case\n");
+        printf("add -v for verbal output\n");
+        return 1;
+    }
     char* file_name1 = argv[1];
     char* file_name2 = argv[2];
     int flagI = 0, flagV = 0;

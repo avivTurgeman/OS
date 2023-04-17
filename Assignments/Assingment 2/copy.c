@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -35,6 +34,13 @@ int copy(char* file_name1, char* file_name2, int flagF){
 }
    
 int main(int argc, char *argv[]){
+    if (argc < 3){
+        printf("to use the program please use this format: ./copy <file1> <file2>\n");
+        printf("add -f to compel the replication\n");
+        printf("add -v for verbal output\n");
+        return 1;
+    }
+
     char* file_name1 = argv[1];
     char* file_name2 = argv[2];
     int flagF = 0, flagV = 0;
