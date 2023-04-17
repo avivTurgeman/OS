@@ -13,9 +13,10 @@ int main(int argc, char* argv[]){
         strcat(message,argv[i]);
     }
     strcat(message,"\0");
-    void * program = dlopen(codec,RTLD_LAZY);
+    void * program = dlopen(codec,RTLD_NOW);
     if(!program){
         printf("error (1)\n");
+        return 1;
     }
     void (*encode)(char*) = dlsym(program,"decode");
     if(!encode){
