@@ -11,18 +11,19 @@ all: setup libcodecA.so libcodecB.so encode decode
 setup:
 	export LD_LIBRARY_PATH=/home/alon/CLionProjects/OS/Assignments/Assingment\ 2/:$LD_LIBRARY_PATH
 
-
 codecA.o: codecA.c
 	$(CC) ${CFLAGS}  codecA.c -o codecA.o
 
 libcodecA.so: codecA.o
 	$(CC) ${LDFLAGS} codecA.o -o libcodecA.so
+	export LD_LIBRARY_PATH=/home/alon/CLionProjects/OS/Assignments/Assingment\ 2/:$LD_LIBRARY_PATH
 
 codecB.o: codecB.c
 	$(CC) ${CFLAGS}  codecB.c -o codecB.o
 
 libcodecB.so: codecB.o
 	$(CC) ${LDFLAGS} codecB.o -o libcodecB.so
+	export LD_LIBRARY_PATH=/home/alon/CLionProjects/OS/Assignments/Assingment\ 2/:$LD_LIBRARY_PATH
 
 encode.o: encode.c
 	$(CC) -c -Wall encode.c -o encode.o
