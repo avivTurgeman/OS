@@ -12,5 +12,5 @@ void encode(char* str){
 }
 
 void decode(char* str){
-    encode(str);;
+    encode(str);
 }
