@@ -32,7 +32,7 @@ int main(int argc, char* argv[]){
 
     char * codec = argv[1];
     char* library_name = (char*)malloc(strlen(codec) + 10);
-    sprintf(library_name, "lib%s.so", codec);
+    sprintf(library_name, "./%s", codec);
     void* program = dlopen(library_name, RTLD_NOW);
     free(library_name);
 

@@ -1,29 +1,25 @@
 CC = gcc
 CFLAGS = -c -Wall -Werror -fPIC
-LDFLAGS = -shared -Wall
+LDFLAGS = -shared -Wall -ldl
 RM = rm -f
 
 
 .PHONY: all clean setup
 
-all: setup libcodecA.so libcodecB.so encode decode
+all: codecA codecB encode decode
 
-setup:
-	export LD_LIBRARY_PATH=/home/alon/CLionProjects/OS/Assignments/Assingment\ 2/:$LD_LIBRARY_PATH
 
 codecA.o: codecA.c
 	$(CC) ${CFLAGS}  codecA.c -o codecA.o
 
-libcodecA.so: codecA.o
-	$(CC) ${LDFLAGS} codecA.o -o libcodecA.so
-	export LD_LIBRARY_PATH=/home/alon/CLionProjects/OS/Assignments/Assingment\ 2/:$LD_LIBRARY_PATH
+codecA: codecA.o
+	$(CC) ${LDFLAGS} codecA.o -o codecA
 
 codecB.o: codecB.c
 	$(CC) ${CFLAGS}  codecB.c -o codecB.o
 
-libcodecB.so: codecB.o
-	$(CC) ${LDFLAGS} codecB.o -o libcodecB.so
-	export LD_LIBRARY_PATH=/home/alon/CLionProjects/OS/Assignments/Assingment\ 2/:$LD_LIBRARY_PATH
+codecB: codecB.o
+	$(CC) ${LDFLAGS} codecB.o -o codecB
 
 encode.o: encode.c
 	$(CC) -c -Wall encode.c -o encode.o
@@ -39,4 +35,4 @@ decode: decode.o
 
 
 clean:
-	rm -rf *.o *.so *.exe encode decode
+	rm -rf *.o encode decode codecA codecB
