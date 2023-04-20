@@ -68,11 +68,11 @@ int main() {
 
         /* for commands not part of the shell command language */
         pid_t id = fork();
-        if(id != 0){
+        if (id != 0) {
             wait(&status);
             if (WIFEXITED(status)) {
                 int exit_code = WEXITSTATUS(status);
-                if(exit_code){
+                if (exit_code) {
                     printf("error exit code: %d\n", exit_code);
                 }
             }
@@ -80,34 +80,57 @@ int main() {
         if (id == 0) {
             signal(SIGINT, SIG_DFL);
 
-            if(is_simple){
-                printf("masheoo\n");
+            if (is_simple) {
                 execvp(argv[0], argv);
-            } else if(pipes_n > 0){
-                    int fd[2];
-                    // fd[0] - fd_out (read)
-                    // fd[1] - fd_out (write)
-                    if(pipe(fd) == -1){
-                        printf("error ocurred while openning pipe()\n");
-                        exit(1);
-                    }
-            
-                    pid_t id2 = fork();
-                    if(id2 == 0){
-                        dup2(fd[1], 0);
-                        close(fd[1]);
-                        if(pipes_n > 1){
-                            pid_t id3 = fork();
-                            if(id3 == 0){
-            
-                            }
-                        }
-                    }
-                } else if(redirect == 1){
-            
-                } else if(redirect == 2){
-            
+            } else if (pipes_n == 1) {
+                int fd[2];
+                // fd[0] -> fd_in (read)
+                // fd[1] -> fd_out (write)
+                if (pipe(fd) == -1) {
+                    printf("error occurred while opening pipe()\n");
+                    exit(1);
                 }
+
+                pid_t id2 = fork();
+                if (id2 == 0) {
+                    dup2(fd[1], 0);
+                    close(fd[1]);
+                    char program1[1000] = {0};
+                    for (int i = 0; i < pipes[0]; ++i) {
+                        strcat(program1, argv[i]);
+                        strcat(program1, " ");
+                    }
+                    program1[strlen(program1) - 1] = '\0';
+                    execvp(program1, argv);
+
+
+
+//                    if (pipes_n > 1) {
+//                        //pipe
+//                        pid_t id3 = fork();
+//                        if (id3 == 0) {
+//
+//                        }
+                } else {
+                    wait(NULL);
+                    int till = argc;
+                    if(redirect){
+                        till = redirect_to -1;
+                    }
+                    char program2[1000] = {0};
+                    for (int i = pipes[0]; i < till; ++i) {
+                        strcat(program2, argv[i]);
+                        strcat(program2, " ");
+                    }
+                    program2[strlen(program2) - 1] = '\0';
+                    execvp(program2, argv);
+
+                }
+            } else if (redirect == 1) {
+
+            } else if (redirect == 2) {
+
+            }
 
 
 
