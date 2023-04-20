@@ -6,7 +6,7 @@ RM = rm -f
 
 .PHONY: all clean setup
 
-all: codecA codecB encode decode
+all: codecA codecB encode decode stshell
 
 
 codecA.o: codecA.c
@@ -32,6 +32,12 @@ decode.o: decode.c
 
 decode: decode.o
 	$(CC) -Wall decode.o -o decode
+
+shell.o: basic_shell.c
+	$(CC) -c -Wall basic_shell.c -o shell.o
+
+stshell: shell.o
+	$(CC) -Wall shell.o -o stshell
 
 
 clean:
