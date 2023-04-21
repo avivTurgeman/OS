@@ -56,11 +56,14 @@ int main() {
                 redirect = 1;
                 redirect_to = j + 1;
                 is_simple = 0;
+                printf("found >\n");
             } else if (strcmp(argv[j], ">>") == 0) {
                 redirect = 2;
                 redirect_to = j + 1;
                 is_simple = 0;
-            } else if (strcmp(argv[j], "|")) {
+                printf("found >>\n");
+            } else if (strcmp(argv[j], "|") == 0) {
+                printf("found | in %d\n ", j);
                 pipes[pipes_n++] = j;
                 is_simple = 0;
             }
@@ -73,7 +76,6 @@ int main() {
             if (WIFEXITED(status)) {
                 int exit_code = WEXITSTATUS(status);
                 if (exit_code) {
-                    printf("error exit code: %d\n", exit_code);
                 }
             }
         }
@@ -82,50 +84,37 @@ int main() {
 
             if (is_simple) {
                 execvp(argv[0], argv);
+
             } else if (pipes_n == 1) {
                 int fd[2];
-                // fd[0] -> fd_in (read)
-                // fd[1] -> fd_out (write)
                 if (pipe(fd) == -1) {
-                    printf("error occurred while opening pipe()\n");
                     exit(1);
                 }
 
                 pid_t id2 = fork();
                 if (id2 == 0) {
-                    dup2(fd[1], 0);
-                    close(fd[1]);
-                    char program1[1000] = {0};
-                    for (int i = 0; i < pipes[0]; ++i) {
-                        strcat(program1, argv[i]);
-                        strcat(program1, " ");
+                    dup2(fd[1], 1);
+                    char *argv2[10] = {0};
+                    for (int j = 0, k = 0; j < pipes[0]; ++j, ++k) {
+                        argv2[0] = argv[j];
                     }
-                    program1[strlen(program1) - 1] = '\0';
-                    execvp(program1, argv);
 
-
-
-//                    if (pipes_n > 1) {
-//                        //pipe
-//                        pid_t id3 = fork();
-//                        if (id3 == 0) {
-//
-//                        }
+                    execvp(argv[0], argv2);
                 } else {
                     wait(NULL);
+                    dup2(fd[0], 0);
                     int till = argc;
-                    if(redirect){
-                        till = redirect_to -1;
+                    if (redirect) {
+                        till = redirect_to - 1;
                     }
-                    char program2[1000] = {0};
-                    for (int i = pipes[0]; i < till; ++i) {
-                        strcat(program2, argv[i]);
-                        strcat(program2, " ");
+                    char *argv3[10] = {0};
+                    for (int i = pipes[0] + 1, k = 0; i < till; ++i, k++) {
+                        argv3[k] = argv[i];
                     }
-                    program2[strlen(program2) - 1] = '\0';
-                    execvp(program2, argv);
-
+                    execvp(argv[pipes[0] + 1], argv3);
                 }
+            } else if (pipes_n == 2) {
+
             } else if (redirect == 1) {
 
             } else if (redirect == 2) {
@@ -165,6 +154,9 @@ int main() {
 //
             //     wait(NULL);
             // }
+            wait(NULL);
+            printf("all done!!\n");
+            exit(0);
         }
     }
 }
