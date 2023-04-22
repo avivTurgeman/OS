@@ -19,7 +19,7 @@ int main() {
     signal(SIGINT, SIG_IGN);
 
     while (1) {
-        printf("\033[1;32mAviv&Alon:~$ \033[0m");
+        printf("\033[1;32mAviv&Alon\033[0m:\033[34m~\033[37m$\033[0m ");
         fgets(command, 1024, stdin);
         command[strlen(command) - 1] = '\0'; // replace \n with \0
 
