@@ -6,8 +6,19 @@ RM = rm -f
 
 .PHONY: all clean setup
 
-all: codecA codecB encode decode stshell
+all: PartA PartB PartC
 
+PartA: cmp copy
+
+PartB: codecA codecB encode decode
+
+PartC: stshell
+
+cmp: cmp.c
+	$(CC) -Wall -g cmp.c -o cmp
+
+copy: copy.c
+	$(CC) -Wall -g copy.c -o copy
 
 codecA.o: codecA.c
 	$(CC) ${CFLAGS}  codecA.c -o codecA.o
@@ -25,20 +36,19 @@ encode.o: encode.c
 	$(CC) -c -Wall encode.c -o encode.o
 
 encode: encode.o
-	$(CC) -Wall encode.o -o encode
+	$(CC) -Wall -g encode.o -o encode
 
 decode.o: decode.c
-	$(CC) -c -Wall decode.c -o decode.o
+	$(CC) -c -Wall -g decode.c -o decode.o
 
 decode: decode.o
-	$(CC) -Wall decode.o -o decode
+	$(CC) -Wall -g decode.o -o decode
 
-shell.o: basic_shell.c
-	$(CC) -c -Wall basic_shell.c -o shell.o
+shell.o: stshell.c
+	$(CC) -c -Wall -g stshell.c -o shell.o
 
 stshell: shell.o
-	$(CC) -Wall shell.o -o stshell
-
+	$(CC) -Wall -g shell.o -o stshell
 
 clean:
-	rm -rf *.o encode decode codecA codecB stshell
+	rm -rf *.o cmp copy encode decode codecA codecB stshell
