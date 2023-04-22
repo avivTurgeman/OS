@@ -41,4 +41,4 @@ stshell: shell.o
 
 
 clean:
-	rm -rf *.o encode decode codecA codecB
+	rm -rf *.o encode decode codecA codecB stshell
