@@ -4,7 +4,7 @@ LDFLAGS = -shared -Wall -ldl
 RM = rm -f
 
 
-.PHONY: all clean setup
+.PHONY: all clean cleantxt
 
 all: PartA PartB PartC
 
@@ -52,3 +52,5 @@ stshell: shell.o
 
 clean:
 	rm -rf *.o cmp copy encode decode codecA codecB stshell
+cleantxt:
+	rm -rf *.txt

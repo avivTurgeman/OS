@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 int main(int argc, char* argv[]){
-    if (argc < 3){
+    if (argc < 2){
         printf("please use the format: ./encode <codec> <message>\n");
         return 1;
     }

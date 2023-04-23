@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 int main(int argc, char* argv[]){
-    if (argc < 3){
+    if (argc < 2){
         printf("please use the format: ./encode <codec> <message>\n");
         return 1;
     }
@@ -13,7 +13,6 @@ int main(int argc, char* argv[]){
     for (int i = 1; i < argc; i++) {
         total_length += strlen(argv[i]) + 1;
     }
-
     char* message = (char*) malloc(total_length);
     if (!message) {
         printf("malloc failed");
