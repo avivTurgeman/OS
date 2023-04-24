@@ -1,0 +1,36 @@
+READ.ME FOR ASSIGNMENT 2:
+
+HOW TO RUN:
+
+PART A:
+to run the first part (aka PartA) of the project, run the command:
+`make PartA`
+2 executable files will be added: cmp, copy
+the usage of those files are as so:
+1st Usage: ./cmp <file1> <file2> -v -i
+2nd Usage: ./copy <file1> <file2> -v -f
+(the flags are optional)
+
+PART B:
+to run the second part of the project, run the command:
+`make PartB`
+2 executable files will be added: encode, decode
+1st Usage: ./encode <codecA/codecB> <text> 
+2nd Usage: ./decode <codecA/codecB> <text> 
+
+PART C:
+to run the third part of the project, run the command:
+`make PartC`
+1 executable file will be added: stshell
+Usage: ./stshell
+then you wil enter to our shell where you can run basic commands.
+notice that to exit the shell use the command `exit` as `Ctrl+C` will not work
+
+DEFAULT:
+when using the command `make` all of the parts will be made.
+
+CLEAN:
+to clean all of the files added with the Makefile, run the command: `make clean`
+
+CLEAN TEXT:
+to clean all of the .txt files added (e.g. to check PartA), run the command: `make cleantxt`
