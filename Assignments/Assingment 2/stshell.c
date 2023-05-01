@@ -19,7 +19,9 @@ int main() {
     signal(SIGINT, SIG_IGN);
 
     while (1) {
-        printf("\033[1;32mAviv&Alon\033[0m:\033[34m~\033[37m$\033[0m ");
+        char path[1024];
+        getcwd(path, sizeof(path));
+        printf("\033[1;32mAviv&Alon's_shell\033[0m:\033[1;34m~%s\033[37m$\033[0m ", path);
         fgets(command, 1024, stdin);
         command[strlen(command) - 1] = '\0'; // replace \n with \0
 
