@@ -41,11 +41,11 @@ void usage() {
     printf("server side usage: ./stnc -s PORT\n");
 }
 
-int client(char *port, char *ip) {
+int client_A(char *port, char *ip) {
 
     int PORT = atoi(port);
     char IP[40];
-    strcpy(IP,ip);
+    strcpy(IP, ip);
     portHandler(PORT);
     IPHandler(IP);
 
@@ -83,7 +83,7 @@ int client(char *port, char *ip) {
     fds[1].events = POLLIN;
     while (1) {
         int err = poll(fds, 2, -1);
-        if(err < 0){
+        if (err < 0) {
             printf("poll failed\n");
             return 1;
         }
@@ -113,7 +113,7 @@ int client(char *port, char *ip) {
     return 0;
 }
 
-int server(char *port) {
+int server_A(char *port) {
 
     int PORT = atoi(port);
     char IP[] = "0.0.0.0";
@@ -159,7 +159,7 @@ int server(char *port) {
     fds[1].events = POLLIN;
     while (1) {
         int err = poll(fds, 2, -1);
-        if(err < 0){
+        if (err < 0) {
             perror("poll failed\n");
             return 1;
         }
@@ -192,7 +192,51 @@ int server(char *port) {
 
     return 0;
 }
+int type_param(char* ip,char* port,char * type, char * param){
+    int PORT = atoi(port);
+    char IP[40];
+    strcpy(IP, ip);
+    portHandler(PORT);
+    IPHandler(IP);
 
+    //initializing a TCP socket.
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1) {
+        printf("Could not create socket.\n");
+        return 1;
+    }
+
+    struct sockaddr_in receiver_adderess;
+    //setting to zero the struct senderAddress
+    memset(&receiver_adderess, 0, sizeof(receiver_adderess));
+    receiver_adderess.sin_family = AF_INET;
+    receiver_adderess.sin_port = htons(PORT);
+    int checkP = inet_pton(AF_INET, (const char *) IP, &receiver_adderess.sin_addr);
+
+    if (checkP < 0) {
+        printf("inet_pton() FAILED.\n");
+        return 1;
+    }
+
+    //connecting to the Receiver on the socket
+    int connectCheck = connect(sock, (struct sockaddr *) &receiver_adderess, sizeof(receiver_adderess));
+
+    if (connectCheck == -1) {
+        printf("connect() FAILED.\n");
+        return 1;
+    }
+    char * temp = strcat(type,",");
+    char *message= strcat(temp,param);
+    printf("check1: %s",message);
+    send(sock,message, strlen(message),0);
+    // Set socket options to allow reuse of address
+    int yes = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
+        perror("setsockopt error");
+        exit(EXIT_FAILURE);
+    }
+    close(sock);
+}
 
 
 int main(int argc, char *argv[]) {
@@ -204,12 +248,14 @@ int main(int argc, char *argv[]) {
     int is_ipv6 = 0;
     int is_uds = 0;
     int is_dgram = 0;
+    int is_stream = 0;
     int is_mmap = 0;
     int is_pipe = 0;
     int is_c = 0;
     int is_p = 0;
+    int is_q = 0;
     int is_server = 0;
-    char file_name[100] = {'\0'};
+    char file_name[50] = {'\0'};
     char ip[40] = {'\0'};
     char port[10] = {'\0'};
     if (argc < 3) {
@@ -221,8 +267,10 @@ int main(int argc, char *argv[]) {
             is_c = 1;
         } else if (strcmp(argv[i], "-s") == 0) {
             is_server = 1;
-        }else if (strcmp(argv[i], "-p") == 0) {
-                is_p = 1;
+        } else if (strcmp(argv[i], "-p") == 0) {
+            is_p = 1;
+        } else if (strcmp(argv[i], "-q") == 0) {
+            is_q = 1;
         } else if (strcmp(argv[i], "pipe") == 0) {
             is_pipe = 1;
             if (i + 1 >= argc) {
@@ -251,37 +299,76 @@ int main(int argc, char *argv[]) {
             is_udp = 1;
         } else if (strstr(argv[i], ".") != NULL) {
             is_ip = 1;
-            strcpy(ip ,argv[i]);
+            strcpy(ip, argv[i]);
         } else if (strstr(argv[i], ":") != NULL) {
             is_ip = 1;
             strcpy(ip, argv[i]);
+        } else if (strcmp(argv[i], "dgram") == 0) {
+            is_dgram = 1;
+        } else if (strcmp(argv[i], "stream") == 0) {
+            is_stream = 1;
         } else {
             is_port = 1;
-            strcpy(port ,argv[i]);
+            strcpy(port, argv[i]);
         }
 
     }
 
+    if (!is_p) { //part A
+        if (is_c) { //client
+            if (argc != 4) {
+                usage();
+                exit(1);
+            }
+            if (!is_port || !is_ip) {
+                usage();
+                exit(1);
+            }
+            if (client_A(port, ip) != 0)
+                exit(1);
 
-    if (is_c && !is_p) { //client of part A
-        if (argc != 4) {
+        } else if (is_server) { // server
+            if (argc != 3) {
+                usage();
+                exit(1);
+            }
+            if (!is_port) {
+                usage();
+                exit(1);
+            }
+            if (server_A(port) != 0)
+                exit(1);
+        } else {
             usage();
             exit(1);
         }
-        if(client(port, ip) != 0)
-            exit(1);
+    } else { // part B
+        if (is_c) {
+            if (is_ipv4 && is_tcp) { // ipv4 - tcp
 
-    } else if (is_server) {
-        if (argc != 3) {
+            } else if (is_ipv4 && is_udp) { // ipv4 - udp
+
+            } else if (is_ipv6 && is_tcp) { // ipv6- tcp
+
+            } else if (is_ipv6 && is_udp) { // ipv6 - udp
+
+            } else if (is_uds && is_dgram) { // uds dgram
+
+            } else if (is_uds && is_stream) {// uds stream
+
+            } else if (is_mmap) { // mmap
+
+            } else if (is_pipe) { // pipe
+
+            } else {
+                usage();
+                exit(1);
+            }
+        } else if (is_server) {
+
+        } else {
             usage();
             exit(1);
         }
-        if(server(port) != 0)
-            exit(1);
-
-    } else {
-        printf("client side usage: ./stnc -c IP PORT\n");
-        printf("server side usage: ./stnc -s PORT\n");
-        exit(1);
     }
 }
