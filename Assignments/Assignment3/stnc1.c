@@ -36,16 +36,7 @@ int IPHandler(char ip[20]) {
     return 0;
 }
 
-
-
-void usage() {
-    printf("Usage options:\n");
-    printf("client side usage: ./stnc -c IP PORT\n");
-    printf("server side usage: ./stnc -s PORT\n");
-}
-
-int client_A(char *port, char *ip) {
-
+int tcp_client_conn(char * ip, char *port){
     int PORT = atoi(port);
     char IP[40];
     strcpy(IP, ip);
@@ -56,7 +47,7 @@ int client_A(char *port, char *ip) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
         printf("Could not create socket.\n");
-        return 1;
+        exit(1);
     }
 
     struct sockaddr_in receiver_adderess;
@@ -68,7 +59,7 @@ int client_A(char *port, char *ip) {
 
     if (checkP < 0) {
         printf("inet_pton() FAILED.\n");
-        return 1;
+        exit(1);
     }
 
     //connecting to the Receiver on the socket
@@ -76,8 +67,20 @@ int client_A(char *port, char *ip) {
 
     if (connectCheck == -1) {
         printf("connect() FAILED.\n");
-        return 1;
+        exit(1);
     }
+    return sock;
+}
+
+void usage() {
+    printf("Usage options:\n");
+    printf("client side usage: ./stnc -c IP PORT\n");
+    printf("server side usage: ./stnc -s PORT\n");
+}
+
+int client_A(char *port, char *ip) {
+
+    int sock = tcp_client_conn(ip,port);
     int fd = -1;
     struct pollfd fds[2];
     fds[0].fd = 0; // stdin
@@ -192,38 +195,7 @@ int server_A(char *port) {
 }
 
 int type_param(char* ip,char* port,char * type, char * param){
-    int PORT = atoi(port);
-    char IP[40];
-    strcpy(IP, ip);
-    portHandler(PORT);
-    IPHandler(IP);
-
-    //initializing a TCP socket.
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1) {
-        printf("Could not create socket.\n");
-        return 1;
-    }
-
-    struct sockaddr_in receiver_adderess;
-    //setting to zero the struct senderAddress
-    memset(&receiver_adderess, 0, sizeof(receiver_adderess));
-    receiver_adderess.sin_family = AF_INET;
-    receiver_adderess.sin_port = htons(PORT);
-    int checkP = inet_pton(AF_INET, (const char *) IP, &receiver_adderess.sin_addr);
-
-    if (checkP < 0) {
-        printf("inet_pton() FAILED.\n");
-        return 1;
-    }
-
-    //connecting to the Receiver on the socket
-    int connectCheck = connect(sock, (struct sockaddr *) &receiver_adderess, sizeof(receiver_adderess));
-
-    if (connectCheck == -1) {
-        printf("connect() FAILED.\n");
-        return 1;
-    }
+    int sock = tcp_client_conn(ip, port);
     char * temp = strcat(type,",");
     char *message= strcat(temp,param);
     printf("check1: %s",message);
@@ -239,53 +211,22 @@ int type_param(char* ip,char* port,char * type, char * param){
 
 int client_TCP_B(char * ip, char* port,FILE * file){
 
-    int PORT = atoi(port);
-    char IP[40];
-    strcpy(IP, ip);
-    portHandler(PORT);
-    IPHandler(IP);
-
-    //initializing a TCP socket.
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1) {
-        printf("Could not create socket.\n");
-        return 1;
-    }
-
-    struct sockaddr_in receiver_adderess;
-    //setting to zero the struct senderAddress
-    memset(&receiver_adderess, 0, sizeof(receiver_adderess));
-    receiver_adderess.sin_family = AF_INET;
-    receiver_adderess.sin_port = htons(PORT);
-    int checkP = inet_pton(AF_INET, (const char *) IP, &receiver_adderess.sin_addr);
-
-    if (checkP < 0) {
-        printf("inet_pton() FAILED.\n");
-        return 1;
-    }
-
-    //connecting to the Receiver on the socket
-    int connectCheck = connect(sock, (struct sockaddr *) &receiver_adderess, sizeof(receiver_adderess));
-
-    if (connectCheck == -1) {
-        printf("connect() FAILED.\n");
-        return 1;
-    }
+    int sock = tcp_client_conn(ip, port);
 
     char buffer[16384];
     size_t bytes_read;
-    struct timeval start, end, diff;
-    gettimeofday(&start,NULL);
+    // struct timeval start, end, diff;
+    // gettimeofday(&start,NULL);
     while ((bytes_read = fread(buffer, sizeof(buffer),1, file)) > 0) {
         if (send(sock, buffer, bytes_read, 0) == -1) {
             perror("Send failed");
             exit(EXIT_FAILURE);
         }
     }
-    gettimeofday(&end,NULL);
+    // gettimeofday(&end,NULL);
 
-    timersub(&end,&start,&diff);
-    int microsec = diff.tv_usec;
+    // timersub(&end,&start,&diff);
+    // int microsec = diff.tv_usec;
 }
 
 int main(int argc, char *argv[]) {
@@ -398,41 +339,12 @@ int main(int argc, char *argv[]) {
                 perror("File open failed");
                 exit(EXIT_FAILURE);
             }
+            //socket to notify the receiver to start timing
+            int notify_socket = tcp_client_conn(ip, port+1);
+            char notify[16] = "start,";
 
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
-                int PORT = atoi(port);
-                char IP[40];
-                strcpy(IP, ip);
-                portHandler(PORT);
-                IPHandler(IP);
-
-                //initializing a TCP socket.
-                int sock = socket(AF_INET, SOCK_STREAM, 0);
-                if (sock == -1) {
-                    printf("Could not create socket.\n");
-                    return 1;
-                }
-
-                struct sockaddr_in receiver_adderess;
-                //setting to zero the struct senderAddress
-                memset(&receiver_adderess, 0, sizeof(receiver_adderess));
-                receiver_adderess.sin_family = AF_INET;
-                receiver_adderess.sin_port = htons(PORT);
-                int checkP = inet_pton(AF_INET, (const char *) IP, &receiver_adderess.sin_addr);
-
-                if (checkP < 0) {
-                    printf("inet_pton() FAILED.\n");
-                    return 1;
-                }
-
-                //connecting to the Receiver on the socket
-                int connectCheck = connect(sock, (struct sockaddr *) &receiver_adderess, sizeof(receiver_adderess));
-
-                if (connectCheck == -1) {
-                    printf("connect() FAILED.\n");
-                    return 1;
-                }
-
+                int sock = tcp_client_conn(ip,port);
                 char buffer[16384];
                 size_t bytes_read;
                 while ((bytes_read = fread(buffer, sizeof(buffer),1, file)) > 0) {
@@ -441,7 +353,6 @@ int main(int argc, char *argv[]) {
                         exit(EXIT_FAILURE);
                     }
                 }
-
 
             } else if (is_ipv4 && is_udp) { // ipv4 - udp
 
