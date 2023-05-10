@@ -5,6 +5,7 @@
 #include<netinet/in.h>
 #include<string.h>
 #include <poll.h>
+#include <sys/time.h>
 
 int portHandler(int port) {
     if ((port < 1024) || (port > 65535)) {
@@ -34,6 +35,8 @@ int IPHandler(char ip[20]) {
 
     return 0;
 }
+
+
 
 void usage() {
     printf("Usage options:\n");
@@ -125,11 +128,6 @@ int server_A(char *port) {
     memset(&senderAddress, 0, sizeof(senderAddress));
     senderAddress.sin_family = AF_INET;
     senderAddress.sin_port = htons(PORT);
-//    int checkP = inet_pton(AF_INET, (const char *) IP, &senderAddress.sin_addr);
-//    if (checkP <= 0) {
-//        printf("inet_pton() failed.\n");
-//        return 1;
-//    }
 
     //opening the socket.
     int Bcheck = bind(sock, (struct sockaddr *) &senderAddress, sizeof(senderAddress));
@@ -192,6 +190,7 @@ int server_A(char *port) {
 
     return 0;
 }
+
 int type_param(char* ip,char* port,char * type, char * param){
     int PORT = atoi(port);
     char IP[40];
@@ -238,6 +237,56 @@ int type_param(char* ip,char* port,char * type, char * param){
     close(sock);
 }
 
+int client_TCP_B(char * ip, char* port,FILE * file){
+
+    int PORT = atoi(port);
+    char IP[40];
+    strcpy(IP, ip);
+    portHandler(PORT);
+    IPHandler(IP);
+
+    //initializing a TCP socket.
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1) {
+        printf("Could not create socket.\n");
+        return 1;
+    }
+
+    struct sockaddr_in receiver_adderess;
+    //setting to zero the struct senderAddress
+    memset(&receiver_adderess, 0, sizeof(receiver_adderess));
+    receiver_adderess.sin_family = AF_INET;
+    receiver_adderess.sin_port = htons(PORT);
+    int checkP = inet_pton(AF_INET, (const char *) IP, &receiver_adderess.sin_addr);
+
+    if (checkP < 0) {
+        printf("inet_pton() FAILED.\n");
+        return 1;
+    }
+
+    //connecting to the Receiver on the socket
+    int connectCheck = connect(sock, (struct sockaddr *) &receiver_adderess, sizeof(receiver_adderess));
+
+    if (connectCheck == -1) {
+        printf("connect() FAILED.\n");
+        return 1;
+    }
+
+    char buffer[16384];
+    size_t bytes_read;
+    struct timeval start, end, diff;
+    gettimeofday(&start,NULL);
+    while ((bytes_read = fread(buffer, sizeof(buffer),1, file)) > 0) {
+        if (send(sock, buffer, bytes_read, 0) == -1) {
+            perror("Send failed");
+            exit(EXIT_FAILURE);
+        }
+    }
+    gettimeofday(&end,NULL);
+
+    timersub(&end,&start,&diff);
+    int microsec = diff.tv_usec;
+}
 
 int main(int argc, char *argv[]) {
     int is_tcp = 0;
@@ -311,11 +360,10 @@ int main(int argc, char *argv[]) {
             is_port = 1;
             strcpy(port, argv[i]);
         }
-
     }
 
     if (!is_p) { //part A
-        if (is_c) { //client
+        if (is_c) { //client A
             if (argc != 4) {
                 usage();
                 exit(1);
@@ -327,7 +375,7 @@ int main(int argc, char *argv[]) {
             if (client_A(port, ip) != 0)
                 exit(1);
 
-        } else if (is_server) { // server
+        } else if (is_server) { // server A
             if (argc != 3) {
                 usage();
                 exit(1);
@@ -343,8 +391,57 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     } else { // part B
-        if (is_c) {
+        if (is_c) { // client side
+            FILE *file;
+            file = fopen("100MB.bin", "rb");
+            if (file == NULL) {
+                perror("File open failed");
+                exit(EXIT_FAILURE);
+            }
+
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
+                int PORT = atoi(port);
+                char IP[40];
+                strcpy(IP, ip);
+                portHandler(PORT);
+                IPHandler(IP);
+
+                //initializing a TCP socket.
+                int sock = socket(AF_INET, SOCK_STREAM, 0);
+                if (sock == -1) {
+                    printf("Could not create socket.\n");
+                    return 1;
+                }
+
+                struct sockaddr_in receiver_adderess;
+                //setting to zero the struct senderAddress
+                memset(&receiver_adderess, 0, sizeof(receiver_adderess));
+                receiver_adderess.sin_family = AF_INET;
+                receiver_adderess.sin_port = htons(PORT);
+                int checkP = inet_pton(AF_INET, (const char *) IP, &receiver_adderess.sin_addr);
+
+                if (checkP < 0) {
+                    printf("inet_pton() FAILED.\n");
+                    return 1;
+                }
+
+                //connecting to the Receiver on the socket
+                int connectCheck = connect(sock, (struct sockaddr *) &receiver_adderess, sizeof(receiver_adderess));
+
+                if (connectCheck == -1) {
+                    printf("connect() FAILED.\n");
+                    return 1;
+                }
+
+                char buffer[16384];
+                size_t bytes_read;
+                while ((bytes_read = fread(buffer, sizeof(buffer),1, file)) > 0) {
+                    if (send(sock, buffer, bytes_read, 0) == -1) {
+                        perror("Send failed");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
 
             } else if (is_ipv4 && is_udp) { // ipv4 - udp
 
