@@ -6,6 +6,24 @@
 #include<string.h>
 #include <poll.h>
 #include <sys/time.h>
+#include <stdint.h>
+
+uint32_t checksum(char* str) {
+    uint32_t sum = 0;
+    for (int i = 0; str[i] != '\0'; i++) {
+        sum += (uint8_t) str[i];
+    }
+    return sum;
+}
+
+uint32_t checksum(File * file){
+    uint8_t byte;
+    uint32_t sum = 0;
+    while (fread(&byte, sizeof(byte), 1, fp) == 1) {
+        sum += byte;
+    }
+    return sum;
+}
 
 int portHandler(int port) {
     if ((port < 1024) || (port > 65535)) {
@@ -15,9 +33,9 @@ int portHandler(int port) {
     return 0;
 }
 
-int IPtype(char *ip){
-    for(int i = 0; ip[i] != '\0'; i++){
-        if(ip[i] == ':'){
+int IPtype(char *ip) {
+    for (int i = 0; ip[i] != '\0'; i++) {
+        if (ip[i] == ':') {
             return 6;
         }
     }
@@ -45,17 +63,22 @@ int IPv4Handler(char *ip) {
     return 1;
 }
 
-int tcp_client_conn(char * ip, char *port){
+int IPv6Handler(char *ip) { // TODO: change the function;
+    return 1;
+}
+
+
+int tcp_client_conn(char *ip, char *port) {
     int PORT = atoi(port);
     char IP[100];
-    strcpy(IP, ip);
+    strcpy(IP, ip); // why?? TODO: ask aviv why needed.
     portHandler(PORT);
 
     int ip_type = IPtype(ip);
 
-    if(ip_type == 4){
+    if (ip_type == 4) {
 
-        if(IPv4Handler(IP)){
+        if (IPv4Handler(IP)) {
             //initializing a TCP socket.
             int sock = socket(AF_INET, SOCK_STREAM, 0);
             if (sock == -1) {
@@ -84,14 +107,73 @@ int tcp_client_conn(char * ip, char *port){
             }
             return sock;
         }
-    }
-    else if(ip_type == 6){
-        if(IPv6Handler(ip)){//need to create IPv6Handler method
-
+    } else if (ip_type == 6) {
+        if (IPv6Handler(ip)) {//need to create IPv6Handler method
+            int sock = socket(AF_INET6, SOCK_STREAM, 0);
+            if (sock == -1) {
+                perror("socket error");
+                exit(1);
+            }
+            int on = 1;
+            if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1) {
+                perror("setsockopt error");
+                exit(1);
+            }
+            struct addrinfo hints, *res;
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET6;
+            hints.ai_socktype = SOCK_STREAM;
+            if (getaddrinfo(ip, port, &hints, &res) != 0) {
+                perror("getaddrinfo error");
+                exit(1);
+            }
+            if (connect(sock, res->ai_addr, res->ai_addrlen) == -1) {
+                perror("connect error");
+                exit(1);
+            }
+            return sock;
         }
     }
+    return -1;
+}
+
+int tcp_server_conn(char *port) {
+    int PORT = atoi(port);
+    char IP[] = "0.0.0.0";
+    portHandler(PORT);
+
+    //initializing a TCP socket.
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in senderAddress;
+    //setting to zero the struct senderAddress
+    memset(&senderAddress, 0, sizeof(senderAddress));
+    senderAddress.sin_family = AF_INET;
+    senderAddress.sin_port = htons(PORT);
+
+    //opening the socket.
+    int Bcheck = bind(sock, (struct sockaddr *) &senderAddress, sizeof(senderAddress));
+    if (Bcheck == -1) {
+        return 1;
+    }
+    //start listening on the socket (one client at the time)
+    int Lcheck = listen(sock, 1);
+    if (Lcheck == -1) {
+        printf("Error in listen().\n");
+        return 1;
+    }
+
+    //accepting the client (the Sender)
+    unsigned int senderAddressLen = sizeof(senderAddress);
+    int senderSock = accept(sock, (struct sockaddr *) &senderAddress, &senderAddressLen);
+    if (senderSock == -1) {
+        printf("accept() failed.\n");
+        close(sock);
+        return 1;
+    }
+    return sock;
 
 }
+
 
 void usage() {
     printf("Usage options:\n");
@@ -101,7 +183,7 @@ void usage() {
 
 int client_A(char *port, char *ip) {
 
-    int sock = tcp_client_conn(ip,port);
+    int sock = tcp_client_conn(ip, port);
     int fd = -1;
     struct pollfd fds[2];
     fds[0].fd = 0; // stdin
@@ -215,12 +297,12 @@ int server_A(char *port) {
     return 0;
 }
 
-int type_param(char* ip,char* port,char * type, char * param){
-    int sock = tcp_client_conn(ip, port+1);
-    char * temp = strcat(type,",");
-    char *message= strcat(temp,param);
-    printf("check1: %s",message);
-    send(sock,message, strlen(message),0);
+int type_param(char *ip, char *port, char *type, char *param) {
+    int sock = tcp_client_conn(ip, port + 1);
+    char *temp = strcat(type, ",");
+    char *message = strcat(temp, param);
+    printf("check1: %s", message);
+    send(sock, message, strlen(message), 0);
     // Set socket options to allow reuse of address
     int yes = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
@@ -230,7 +312,7 @@ int type_param(char* ip,char* port,char * type, char * param){
     close(sock);
 }
 
-int client_TCP_B(char * ip, char* port,FILE * file){
+int client_TCP_B(char *ip, char *port, FILE *file) {
 
     int sock = tcp_client_conn(ip, port);
 
@@ -238,7 +320,7 @@ int client_TCP_B(char * ip, char* port,FILE * file){
     size_t bytes_read;
     // struct timeval start, end, diff;
     // gettimeofday(&start,NULL);
-    while ((bytes_read = fread(buffer, sizeof(buffer),1, file)) > 0) {
+    while ((bytes_read = fread(buffer, sizeof(buffer), 1, file)) > 0) {
         if (send(sock, buffer, bytes_read, 0) == -1) {
             perror("Send failed");
             exit(EXIT_FAILURE);
@@ -248,6 +330,9 @@ int client_TCP_B(char * ip, char* port,FILE * file){
 
     // timersub(&end,&start,&diff);
     // int microsec = diff.tv_usec;
+}
+int server_TCP_B(char *port, FILE *file){
+
 }
 
 int main(int argc, char *argv[]) {
@@ -360,12 +445,12 @@ int main(int argc, char *argv[]) {
                 perror("File open failed");
                 exit(EXIT_FAILURE);
             }
-            
+
 
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
                 //socket to notify the receiver to start timing
                 type_param(ip, port, "ipv4", "tcp");
-                int sock = tcp_client_conn(ip,port);
+                int sock = tcp_client_conn(ip, port);
                 client_TCP_B(ip, port, file);
 
             } else if (is_ipv4 && is_udp) { // ipv4 - udp
@@ -373,7 +458,7 @@ int main(int argc, char *argv[]) {
                 type_param(ip, port, "ipv4", "udp");
 
             } else if (is_ipv6 && is_tcp) { // ipv6- tcp
-                //socket to notify the receiver to start timing            
+                //socket to notify the receiver to start timing
                 type_param(ip, port, "ipv6", "tcp");
 
             } else if (is_ipv6 && is_udp) { // ipv6 - udp
@@ -387,7 +472,7 @@ int main(int argc, char *argv[]) {
             } else if (is_uds && is_stream) {// uds stream
                 //socket to notify the receiver to start timing
                 type_param(ip, port, "uds", "stream");
-            
+
             } else if (is_mmap) { // mmap
                 //socket to notify the receiver to start timing
                 type_param(ip, port, "mmap", "none");
@@ -401,7 +486,7 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
         } else if (is_server) {
-            
+
         } else {
             usage();
             exit(1);
