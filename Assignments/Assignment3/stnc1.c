@@ -15,7 +15,32 @@
 #include <unistd.h>
 
 #define B_SIZE 50000
+#define B_SIZE_UDP 64000
+# define B_SIZE_UDP_IPV6 64000
 
+int ipv6_to_ipv4(char *ipv6_str, char *ipv4_str) {
+    struct in6_addr ipv6_addr;
+    struct sockaddr_in ipv4_addr;
+    int ret;
+
+    // Convert the IPv6 address string to a binary representation
+    ret = inet_pton(AF_INET6, ipv6_str, &ipv6_addr);
+    if (ret != 1) {
+        return -1;
+    }
+
+    // Convert the IPv6 address to an IPv4-mapped IPv6 address
+    memset(&ipv4_addr, 0, sizeof(ipv4_addr));
+    ipv4_addr.sin_family = AF_INET;
+    ipv4_addr.sin_port = 0;
+    ipv4_addr.sin_addr.s_addr =
+            htonl(0xFFFF0000) | ((ipv6_addr.s6_addr[12] << 8) & 0xFF00) | (ipv6_addr.s6_addr[13] & 0xFF);
+
+    // Convert the IPv4 address to a string
+    inet_ntop(AF_INET, &ipv4_addr.sin_addr, ipv4_str, INET_ADDRSTRLEN);
+
+    return 0;
+}
 
 void port_for_info(char *port, char *port_out) {
     int new_port = atoi(port);
@@ -484,14 +509,14 @@ int client_UDP_B(char *ip, char *port, int info_sock, FILE *file) {
     server_addr.sin_port = htons(int_port);
     inet_pton(AF_INET, ip, &server_addr.sin_addr);
 
-    char buffer[B_SIZE];
+    char buffer[B_SIZE_UDP];
     size_t bytes_read;
     char *start = "start";
     char *end = "end";
     send(info_sock, start, strlen(start), 0);
     fseek(file, 0L, SEEK_SET);
     while (1) {
-        bytes_read = fread(buffer, 1, B_SIZE, file);
+        bytes_read = fread(buffer, 1, B_SIZE_UDP, file);
 
         if (bytes_read == 0) {
             // End of file
@@ -515,6 +540,7 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
     struct timeval start, end, diff;
     //open udp sock
     struct sockaddr_in servaddr, cliaddr;
+
 
     // Creating socket file descriptor
     int data_sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -550,8 +576,8 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
     long checksum_sum = 0;
     int done = 0;
     int started = 0;
-    char buffer[B_SIZE];
-    char buffer_str[B_SIZE + 1];
+    char buffer[B_SIZE_UDP];
+    char buffer_str[B_SIZE_UDP + 1];
     while (1) {
         memset(buffer, 0, sizeof(buffer));
         int err = poll(fds, 2, -1);
@@ -575,10 +601,10 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
         }
         if (fds[1].revents && POLLIN) {
 
-            bytes_recived = recvfrom(data_sock, (char *) buffer, B_SIZE, 0, (struct sockaddr *) &cliaddr, &len);
+            bytes_recived = recvfrom(data_sock, (char *) buffer, B_SIZE_UDP, 0, (struct sockaddr *) &cliaddr, &len);
             strcpy(buffer_str, buffer);
-            buffer_str[B_SIZE] = '\0';
-            checksum_sum += checksum(buffer_str, B_SIZE + 1);
+            buffer_str[B_SIZE_UDP] = '\0';
+            checksum_sum += checksum(buffer_str, B_SIZE_UDP + 1);
         }
         if (done == 1) {
 
@@ -590,12 +616,12 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
             time_t start_time = time(NULL);
             while (time(NULL) - start_time <= 5) {
                 long bytes_temp = 0;
-                bytes_temp = recvfrom(data_sock, buffer, B_SIZE, 0, (struct sockaddr *) &cliaddr, &len);
+                bytes_temp = recvfrom(data_sock, buffer, B_SIZE_UDP, 0, (struct sockaddr *) &cliaddr, &len);
                 if (bytes_temp > 0) {
                     bytes_recived += bytes_temp;
                     strcpy(buffer_str, buffer);
-                    buffer_str[B_SIZE] = '\0';
-                    checksum_sum += checksum(buffer_str, B_SIZE + 1);
+                    buffer_str[B_SIZE_UDP] = '\0';
+                    checksum_sum += checksum(buffer_str, B_SIZE_UDP + 1);
                     gettimeofday(&end, NULL);
                     start_time = time(NULL);
                 }
@@ -629,14 +655,183 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
     long microsec = diff.tv_usec;
     long milisec = microsec / 1000;
     milisec += diff.tv_sec * 1000;
-    printf("ipv4_tcp,%ld\n", milisec);
+    printf("ipv4_udp,%ld\n", milisec);
     return 0;
 }
+
+
+int client_UDP_IPV6_B(char *ip, char *port, int info_sock, FILE *file) {
+    printf("starting client\n");
+    // open udp sock
+    int data_sock = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (data_sock < 0) {
+        perror("Error creating socket");
+        return 1;
+    }
+    int int_port = atoi(port);
+    struct sockaddr_in6 servaddr;
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin6_family = AF_INET6;
+    servaddr.sin6_port = htons(8080);
+    if (inet_pton(AF_INET6, ip, &servaddr.sin6_addr) <= 0) {
+        perror("inet_pton failed");
+        return 1;
+    }
+    printf("created socket\n");
+    char buffer[B_SIZE_UDP_IPV6];
+    size_t bytes_read;
+    char *start = "start";
+    char *end = "end";
+    send(info_sock, start, strlen(start), 0);
+    fseek(file, 0L, SEEK_SET);
+    printf("starting while\n");
+    while (1) {
+        bytes_read = fread(buffer, 1, B_SIZE_UDP_IPV6, file);
+
+        if (bytes_read == 0) {
+            // End of file
+            break;
+        }
+//        buffer[bytes_read] = '\0'; // add null terminator
+        if (sendto(data_sock, buffer, bytes_read, 0, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+            perror("Send failed");
+            return 1;
+        }
+    }
+    printf("sending end\n");
+    send(info_sock, end, strlen(end), 0);
+
+    close(data_sock);
+    close(info_sock);
+    return 0;
+}
+
+int server_UDP_IPV6_B(char *port, int info_sock, long bytes_target, long checksum_target, int q) {
+    struct timeval start, end, diff;
+    //open udp sock
+    struct sockaddr_in6 servaddr, cliaddr;
+
+    // Creating socket file descriptor
+    int data_sock = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (data_sock < 0) {
+        perror("socket creation failed");
+        return 1;
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+    memset(&cliaddr, 0, sizeof(cliaddr));
+    unsigned int len;
+    len = sizeof(cliaddr);
+
+    // Filling server information
+    // Bind the socket to a port
+    int int_port = atoi(port);
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin6_family = AF_INET6;
+    servaddr.sin6_port = htons(int_port);
+    servaddr.sin6_addr = in6addr_any;
+    if (bind(data_sock, (const struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+        perror("bind failed");
+        return 1;
+    }
+
+    struct pollfd fds[2];
+    fds[0].fd = info_sock;
+    fds[0].events = POLLIN; // tell me when I can read from it
+    fds[1].fd = data_sock;
+    fds[1].events = POLLIN;
+    long bytes_recived = 0;
+    long checksum_sum = 0;
+    int done = 0;
+    int started = 0;
+    char buffer[B_SIZE_UDP_IPV6];
+    char buffer_str[B_SIZE_UDP_IPV6 + 1];
+    printf("starting while\n");
+    while (1) {
+        memset(buffer, 0, sizeof(buffer));
+        int err = poll(fds, 2, -1);
+        if (err < 0) {
+            perror("poll failed\n");
+            return 1;
+        }
+        if (fds[0].revents && POLLIN) {
+            //read from the socket
+            if (!started)
+                recv(info_sock, buffer, strlen("start") + 1, 0);
+            else
+                recv(info_sock, buffer, strlen("end") + 1, 0);
+            if (strcmp(buffer, "start") == 0) {
+                gettimeofday(&start, NULL);
+                started = 1;
+            } else if (strcmp(buffer, "end") == 0) {
+                gettimeofday(&end, NULL);
+                done = 1;
+            }
+        }
+        if (fds[1].revents && POLLIN) {
+
+            bytes_recived = recvfrom(data_sock, (char *) buffer, B_SIZE_UDP_IPV6, 0, (struct sockaddr *) &cliaddr,
+                                     &len);
+            strcpy(buffer_str, buffer);
+            buffer_str[B_SIZE_UDP_IPV6] = '\0';
+            checksum_sum += checksum(buffer_str, B_SIZE_UDP_IPV6 + 1);
+        }
+        if (done == 1) {
+            printf("done\n");
+            //set the socket to non-blocking code
+            int flags = fcntl(data_sock, F_GETFL, 0);
+            fcntl(data_sock, F_SETFL, flags | O_NONBLOCK);
+
+            // receive data for one second
+            time_t start_time = time(NULL);
+            while (time(NULL) - start_time <= 1) {
+
+                long bytes_temp = 0;
+                bytes_temp = recvfrom(data_sock, buffer, B_SIZE_UDP_IPV6, 0, (struct sockaddr *) &cliaddr, &len);
+                if (bytes_temp  >= 0) {
+                    bytes_recived += bytes_temp;
+                    strcpy(buffer_str, buffer);
+                    buffer_str[B_SIZE_UDP_IPV6] = '\0';
+                    checksum_sum += checksum(buffer_str, B_SIZE_UDP_IPV6 + 1);
+                    gettimeofday(&end, NULL);
+                    start_time = time(NULL);
+                }
+            }
+            break;
+        }
+    }
+    close(data_sock);
+    timersub(&end, &start, &diff);
+    if (!q) {
+        printf("expected: %ld ,got: %ld\n", bytes_target, bytes_recived);
+    }
+    // compare checksum and bytes
+    if (bytes_recived != bytes_target) {
+        printf("error: did not received full data!\n");
+        return 1;
+    }
+    if (checksum_target != checksum_sum) {
+        printf("error: checksum failed\n");
+        printf("expected: %ld ,got: %ld\n", checksum_target, checksum_sum);
+
+        return 1;
+    }
+    //print results
+    long microsec = diff.tv_usec;
+    long milisec = microsec / 1000;
+    milisec += diff.tv_sec * 1000;
+    printf("ipv6_udp,%ld\n", milisec);
+    return 0;
+}
+
 
 int server_B(char *port, int q) {
     char info_port[6];
     port_for_info(port, info_port);
+    printf("info creating:\n");
     int info_sock = tcp_server_conn(info_port);
+    printf("info created\n");
+
     char message[100] = {'\0'};
 
     recv(info_sock, message, sizeof(message), 0);
@@ -650,6 +845,10 @@ int server_B(char *port, int q) {
     long checksum_target_long = atol(checksum_target);
 
     int ret = 0;
+    if (!q) {
+        printf("type: %s\n", type);
+        printf("param: %s\n", param);
+    }
     if (strcmp(type, "ipv4") == 0) {
         if (strcmp(param, "tcp") == 0) {
             ret = server_TCP_B(port, info_sock, bytes_target_long, checksum_target_long, q);
@@ -660,7 +859,8 @@ int server_B(char *port, int q) {
         if (strcmp(param, "tcp") == 0) {
 
         } else if (strcmp(param, "udp") == 0) {
-
+            printf("server_UDP_IPV6_B\n");
+            server_UDP_IPV6_B(port, info_sock, bytes_target_long, checksum_target_long, q);
         }
     } else if (strcmp(type, "uds") == 0) {
         if (strcmp(param, "dgram") == 0) {
@@ -753,7 +953,7 @@ int main(int argc, char *argv[]) {
             strcpy(port, argv[i]);
         }
     }
-
+    printf("ipv6: %d , c: %d, udp: %d\n", is_ipv6, is_c, is_udp);
     if (!is_p) { //part A
         if (is_c) { //client A
             if (argc != 4) {
@@ -788,14 +988,19 @@ int main(int argc, char *argv[]) {
             file = fopen("100MB.bin", "rb");
             if (file == NULL) {
                 perror("File open failed");
-                exit(EXIT_FAILURE);
+                return 1;
             }
             long bytes_count = 0;
             long checksum = checksum_file(file, &bytes_count);
 
             char new_port[6];
             port_for_info(port, new_port);
-            int info_sock = tcp_client_conn(ip, new_port);
+            char info_ip[40] = {'\0'};
+            if (is_ipv6)
+                ipv6_to_ipv4(ip, info_ip);
+            else
+                strcpy(info_ip, ip);
+            int info_sock = tcp_client_conn(info_ip, new_port);
 
 
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
@@ -813,7 +1018,10 @@ int main(int argc, char *argv[]) {
 
             } else if (is_ipv6 && is_udp) { // ipv6 - udp
                 //socket to notify the receiver to start timing
+                printf("ipv6 + udp\n");
                 type_param(info_sock, "ipv6", "udp", checksum, bytes_count);
+                printf("tp done\n");
+                client_UDP_IPV6_B(ip, port, info_sock, file);
 
             } else if (is_uds && is_dgram) { // uds dgram
                 //socket to notify the receiver to start timing
@@ -838,6 +1046,7 @@ int main(int argc, char *argv[]) {
             }
             fclose(file);
         } else if (is_server) {
+            printf("server here\n");
             server_B(port, is_q); //continue as long as server_B returns 0;
             return 0;
         } else {
