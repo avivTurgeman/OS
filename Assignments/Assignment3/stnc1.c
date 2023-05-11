@@ -36,7 +36,7 @@ uint32_t checksum_file(FILE *file, uint32_t *bytes_counter) {
         sum += byte;
         count++;
     }
-    *bytes_counter  = count;
+    *bytes_counter = count;
     return sum;
 }
 
@@ -339,13 +339,9 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
             exit(EXIT_FAILURE);
         }
     }
-    // gettimeofday(&end,NULL);
-
-    // timersub(&end,&start,&diff);
-    // int microsec = diff.tv_usec;
 }
 
-int server_TCP_B(char *port, int info_sock) {
+int server_TCP_B(char *port, int info_sock,int bytes_target,int checksum_target) {
     struct timeval start, end, diff;
 //     gettimeofday(&start,NULL);
     int data_sock = tcp_server_conn(port); //TODO: close the socket
@@ -355,7 +351,8 @@ int server_TCP_B(char *port, int info_sock) {
     fds[0].events = POLLIN; // tell me when I can read from it
     fds[1].fd = data_sock;
     fds[1].events = POLLIN;
-    int bytes_recived = 0;
+    long bytes_recived = 0;
+    unsigned int checksum_sum = 0;
     while (1) {
         char buffer[1000]; // 1000 is enough?
         int err = poll(fds, 2, -1);
@@ -365,24 +362,38 @@ int server_TCP_B(char *port, int info_sock) {
         }
         if (fds[0].revents && POLLIN) {
             //read from the socket
-            recv(info_sock,buffer,sizeof (buffer),0);
-            if(strcmp(buffer,"start")==0){
-                gettimeofday(&start,NULL);
+            recv(info_sock, buffer, sizeof(buffer), 0);
+            if (strcmp(buffer, "start") == 0) {
+                gettimeofday(&start, NULL);
             }
-            if(strcmp(buffer,"end")==0){
-                gettimeofday(&end,NULL);
+            if (strcmp(buffer, "end") == 0) {
+                gettimeofday(&end, NULL);
+                timersub(&end, &start, &diff);
                 break;
             }
         }
         if (fds[1].revents && POLLIN) {
             // recive the data and count byts
-            bytes_recived += recv(data_sock,buffer,sizeof(buffer),0);
-
+            bytes_recived += recv(data_sock, buffer, sizeof(buffer), 0);
+            checksum_sum += checksum(buffer);
         }
     }
     // compare checksum and bytes
-    // ok/failed cases
+    if(bytes_recived != bytes_target){
+        printf("error: did not received full data!");
+        return 1;
+    }
+    if(checksum_target != checksum_sum){
+        printf("error: checksum failed");
+        return 1;
+    }
 
+    //print results
+    long microsec = diff.tv_usec;
+    long milisec = microsec/1000;
+    milisec += diff.tv_sec * 1000;
+    printf("ipv4_tcp:%ld\n",milisec);
+    return 0;
 }
 
 int server_B(char *port) {
@@ -402,7 +413,7 @@ int server_B(char *port) {
 
     if (strcmp(type, "ipv4") == 0) {
         if (strcmp(param, "tcp") == 0) {
-            server_TCP_B(port, info_sock);
+            server_TCP_B(port, info_sock,bytes_target_int,checksum_target_int);
         } else if (strcmp(param, "udp") == 0) {
 
         }
@@ -420,7 +431,7 @@ int server_B(char *port) {
         }
     } else if (strcmp(type, "mmap") == 0) {
 
-    } else if (strcmp(type,"pipe") == 0) {
+    } else if (strcmp(type, "pipe") == 0) {
 
     } else {
         perror("wrong parameters");
