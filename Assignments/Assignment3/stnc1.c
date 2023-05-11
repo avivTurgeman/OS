@@ -14,7 +14,7 @@
 void port_for_info(char *port, char *port_out) {
     int new_port = atoi(port);
     new_port++;
-    if (new_port == 65535) {
+    if (new_port == 65536) {
         new_port -= 2;
     }
     sprintf(port_out, "%d", new_port);
@@ -41,7 +41,7 @@ uint32_t checksum_file(FILE *file, uint32_t *bytes_counter) {
 }
 
 int portHandler(int port) {
-    if ((port < 1024) || (port > 65535)) {
+    if ((port <= 1024) || (port >= 65535)) {
         printf("PORT should be numerical between 1024 and 65535 included\n");
         exit(1);
     }
@@ -86,7 +86,7 @@ int IPv6Handler(char *ip) { // TODO: change the function;
 int tcp_client_conn(char *ip, char *port) {
     int PORT = atoi(port);
     char IP[100];
-    strcpy(IP, ip); // why?? TODO: ask aviv why needed.
+    strcpy(IP, ip);
     portHandler(PORT);
 
     int ip_type = IPtype(ip);
@@ -238,7 +238,7 @@ int client_A(char *port, char *ip) {
 }
 
 int server_A(char *port) {
-
+    // TODO: use tcp_server_conn
     int PORT = atoi(port);
     char IP[] = "0.0.0.0";
     portHandler(PORT);
@@ -313,8 +313,7 @@ int server_A(char *port) {
 }
 
 //sending on the info socket to the server <type> , <param>, checksum, bytes to send.
-void type_param(int sock, char *type, char *param, int checks,
-                int bytes) { /* TODO: change the function: the function should recive socket and not create one     */
+void type_param(int sock, char *type, char *param, int checks,int bytes) {
     char checks_str[16];
     char bytes_str[16];
     sprintf(checks_str, "%d", checks);
@@ -332,20 +331,26 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
 
     char buffer[16384];
     size_t bytes_read;
-
+    char * start = "start";
+    char * end = "end";
+    send(info_sock,start, strlen(start),0);
     while ((bytes_read = fread(buffer, sizeof(buffer), 1, file)) > 0) {
         if (send(data_sock, buffer, bytes_read, 0) == -1) {
             perror("Send failed");
             exit(EXIT_FAILURE);
         }
     }
+    send(info_sock,end, strlen(end),0);
+
+    close(data_sock);
+    close(info_sock);
+    return 0;
 }
 
-int server_TCP_B(char *port, int info_sock,int bytes_target,int checksum_target) {
+int server_TCP_B(char *port, int info_sock,long bytes_target,long checksum_target) {
     struct timeval start, end, diff;
-//     gettimeofday(&start,NULL);
     int data_sock = tcp_server_conn(port); //TODO: close the socket
-    int fd = -1;
+
     struct pollfd fds[2];
     fds[0].fd = info_sock;
     fds[0].events = POLLIN; // tell me when I can read from it
@@ -392,7 +397,7 @@ int server_TCP_B(char *port, int info_sock,int bytes_target,int checksum_target)
     long microsec = diff.tv_usec;
     long milisec = microsec/1000;
     milisec += diff.tv_sec * 1000;
-    printf("ipv4_tcp:%ld\n",milisec);
+    printf("ipv4_tcp,%ld\n",milisec);
     return 0;
 }
 
@@ -408,12 +413,13 @@ int server_B(char *port) {
     recv(info_sock, param, sizeof(param), 0);
     recv(info_sock, checksum_target, sizeof(checksum_target), 0);
     recv(info_sock, bytes_target, sizeof(bytes_target), 0);
-    int bytes_target_int = atoi(bytes_target);
-    int checksum_target_int = atoi(checksum_target);
+    long bytes_target_int = atol(bytes_target);
+    long checksum_target_int = atol(checksum_target);
 
+    int ret = 0;
     if (strcmp(type, "ipv4") == 0) {
         if (strcmp(param, "tcp") == 0) {
-            server_TCP_B(port, info_sock,bytes_target_int,checksum_target_int);
+            ret = server_TCP_B(port, info_sock,bytes_target_int,checksum_target_int);
         } else if (strcmp(param, "udp") == 0) {
 
         }
@@ -437,8 +443,7 @@ int server_B(char *port) {
         perror("wrong parameters");
         return 1;
     }
-
-
+    return ret;
 }
 
 int main(int argc, char *argv[]) {
@@ -546,7 +551,7 @@ int main(int argc, char *argv[]) {
     } else { // part B
         if (is_c) { // client side
             FILE *file;
-            file = fopen("100MB.bin", "rb"); // TODO: close the file
+            file = fopen("100MB.bin", "rb");
             if (file == NULL) {
                 perror("File open failed");
                 exit(EXIT_FAILURE);
@@ -562,7 +567,6 @@ int main(int argc, char *argv[]) {
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
                 //socket to notify the receiver to start timing
                 type_param(info_sock, "ipv4", "tcp", checksum, bytes_count);
-                int sock = tcp_client_conn(ip, port);
                 client_TCP_B(ip, port, info_sock, file);
 
             } else if (is_ipv4 && is_udp) { // ipv4 - udp
@@ -594,14 +598,18 @@ int main(int argc, char *argv[]) {
                 type_param(info_sock, "pipe", "none", checksum, bytes_count);
 
             } else {
+                fclose(file);
                 usage();
                 exit(1);
             }
+            fclose(file);
         } else if (is_server) {
-            //TODO: activate server func.
+            while (!server_B(port)); //continue as long as server_B returns 0;
+            exit(1);
         } else {
             usage();
             exit(1);
         }
     }
+    exit(1);
 }
