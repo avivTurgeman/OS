@@ -16,7 +16,7 @@
 
 #define B_SIZE 50000
 #define B_SIZE_UDP 64000
-# define B_SIZE_UDP_IPV6 64000
+# define B_SIZE_UDP_IPV6 3000
 
 int ipv6_to_ipv4(char *ipv6_str, char *ipv4_str) {
     struct in6_addr ipv6_addr;
