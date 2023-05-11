@@ -8,7 +8,16 @@
 #include <sys/time.h>
 #include <stdint.h>
 
-uint32_t checksum(char* str) {
+void port_for_info(char *port, char *port_out) {
+    int new_port = atoi(port);
+    new_port++;
+    if (new_port == 65535) {
+        new_port -= 2;
+    }
+    sprintf(port_out, "%d", new_port);
+}
+
+uint32_t checksum(char *str) {
     uint32_t sum = 0;
     for (int i = 0; str[i] != '\0'; i++) {
         sum += (uint8_t) str[i];
@@ -16,12 +25,15 @@ uint32_t checksum(char* str) {
     return sum;
 }
 
-uint32_t checksum(File * file){
+uint32_t checksum_file(File *file, uint32_t *bytes_counter) {
     uint8_t byte;
     uint32_t sum = 0;
+    uint32_t count = 0;
     while (fread(&byte, sizeof(byte), 1, fp) == 1) {
         sum += byte;
+        count++;
     }
+    bytes_counter * = count;
     return sum;
 }
 
@@ -297,31 +309,30 @@ int server_A(char *port) {
     return 0;
 }
 
-int type_param(char *ip, char *port, char *type, char *param) {
-    int sock = tcp_client_conn(ip, port + 1);
-    char *temp = strcat(type, ",");
-    char *message = strcat(temp, param);
-    printf("check1: %s", message);
-    send(sock, message, strlen(message), 0);
-    // Set socket options to allow reuse of address
-    int yes = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
-        perror("setsockopt error");
-        exit(EXIT_FAILURE);
-    }
-    close(sock);
+//sending on the info socket to the server <type> , <param>, checksum, bytes to send.
+void type_param(int sock, char *type, char *param, int checks,
+                int bytes) { /* TODO: change the function: the function should recive socket and not create one     */
+    char checks_str[16];
+    char bytes_str[16];
+    sprintf(checks_str, "%d", checks);
+    sprintf(bytes_str, "%d", bytes);
+
+    send(sock, type, strlen(type), 0);
+    send(sock, param, strlen(param), 0);
+    send(sock, checks_str, sizeof(checks_str), 0);
+    send(sock, bytes_str, sizeof(bytes_str), 0);
 }
 
-int client_TCP_B(char *ip, char *port, FILE *file) {
+int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
 
-    int sock = tcp_client_conn(ip, port);
+    int data_sock = tcp_client_conn(ip, port);
 
     char buffer[16384];
     size_t bytes_read;
     // struct timeval start, end, diff;
     // gettimeofday(&start,NULL);
     while ((bytes_read = fread(buffer, sizeof(buffer), 1, file)) > 0) {
-        if (send(sock, buffer, bytes_read, 0) == -1) {
+        if (send(data_sock, buffer, bytes_read, 0) == -1) {
             perror("Send failed");
             exit(EXIT_FAILURE);
         }
@@ -331,7 +342,52 @@ int client_TCP_B(char *ip, char *port, FILE *file) {
     // timersub(&end,&start,&diff);
     // int microsec = diff.tv_usec;
 }
-int server_TCP_B(char *port, FILE *file){
+
+int server_TCP_B(char *port, FILE *file) {
+
+}
+
+int server_B(char *port) {
+    int info_sock = tcp_server_conn(port);
+    char type[10] = {'\0'};
+    char param[30] = {'\0'};
+    char checksum_target[16] = {'\0'};
+    char bytes_target[16] = {'\0'};
+    recv(info_sock, type, sizeof(type), 0);
+    recv(info_sock, param, sizeof(param), 0);
+    recv(info_sock, checksum_target, sizeof(checksum_target), 0);
+    recv(info_sock, bytes_target, sizeof(bytes_target), 0);
+    int bytes_target_int = atoi(bytes_target);
+    int checksum_target_int = atoi(checksum_target);
+
+    if (strcmp(type, "ipv4") == 0) {
+        if (strcmp(param, "tcp") == 0) {
+
+        } else if (strcmp(param, "udp") == 0) {
+
+        }
+    } else if (strcmp(type, "ipv6") == 0) {
+        if (strcmp(param, "tcp") == 0) {
+
+        } else if (strcmp(param, "udp") == 0) {
+
+        }
+    } else if(strcmp(type,"uds")==0){
+        if (strcmp(param, "dgram") == 0) {
+
+        } else if (strcmp(param, "stream") == 0) {
+
+        }
+    } else if(strcmp(type,"mmap")==0){
+
+    } else if(strcmp("pipe")==0){
+
+    } else{
+        perror("wrong parameters");
+        return 1;
+    }
+
+
 
 }
 
@@ -440,53 +496,59 @@ int main(int argc, char *argv[]) {
     } else { // part B
         if (is_c) { // client side
             FILE *file;
-            file = fopen("100MB.bin", "rb");
+            file = fopen("100MB.bin", "rb"); // TODO: close the file
             if (file == NULL) {
                 perror("File open failed");
                 exit(EXIT_FAILURE);
             }
+            uint32_t bytes_count = 0
+            int checksum = checksum_file(file, &bytes_count);
+
+            char new_port[6]
+            port_for_info(port, new_port);
+            int info_sock = tcp_client_conn(ip, new_port);
 
 
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "ipv4", "tcp");
+                type_param(info_sock, "ipv4", "tcp", checksum, bytes_count);
                 int sock = tcp_client_conn(ip, port);
-                client_TCP_B(ip, port, file);
+                client_TCP_B(ip, port, info_sock, file);
 
             } else if (is_ipv4 && is_udp) { // ipv4 - udp
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "ipv4", "udp");
+                type_param(info_sock, "ipv4", "udp", checksum, bytes_count);
 
             } else if (is_ipv6 && is_tcp) { // ipv6- tcp
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "ipv6", "tcp");
+                type_param(info_sock, "ipv6", "tcp", checksum, bytes_count);
 
             } else if (is_ipv6 && is_udp) { // ipv6 - udp
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "ipv6", "udp");
+                type_param(info_sock, "ipv6", "udp", checksum, bytes_count);
 
             } else if (is_uds && is_dgram) { // uds dgram
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "uds", "dgram");
+                type_param(info_sock, "uds", "dgram", checksum, bytes_count);
 
             } else if (is_uds && is_stream) {// uds stream
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "uds", "stream");
+                type_param(info_sock, "uds", "stream", checksum, bytes_count);
 
             } else if (is_mmap) { // mmap
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "mmap", "none");
+                type_param(info_sock, "mmap", "none", checksum, bytes_count);
 
             } else if (is_pipe) { // pipe
                 //socket to notify the receiver to start timing
-                type_param(ip, port, "pipe", "none");
+                type_param(info_sock, "pipe", "none", checksum, bytes_count);
 
             } else {
                 usage();
                 exit(1);
             }
         } else if (is_server) {
-
+            //TODO: activate server func.
         } else {
             usage();
             exit(1);
