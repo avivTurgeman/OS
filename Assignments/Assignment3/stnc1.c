@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 void port_for_info(char *port, char *port_out) {
     int new_port = atoi(port);
@@ -348,7 +349,7 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
 }
 
 int server_TCP_B(char *port, int info_sock,long bytes_target,long checksum_target) {
-    struct timeval start, end, diff;
+    struct timeval start, end, diff ,countdown,temp,tempdiff ;
     int data_sock = tcp_server_conn(port); //TODO: close the socket
 
     struct pollfd fds[2];
@@ -358,6 +359,8 @@ int server_TCP_B(char *port, int info_sock,long bytes_target,long checksum_targe
     fds[1].events = POLLIN;
     long bytes_recived = 0;
     unsigned int checksum_sum = 0;
+    int done = 0;
+
     while (1) {
         char buffer[1000]; // 1000 is enough?
         int err = poll(fds, 2, -1);
@@ -373,8 +376,8 @@ int server_TCP_B(char *port, int info_sock,long bytes_target,long checksum_targe
             }
             if (strcmp(buffer, "end") == 0) {
                 gettimeofday(&end, NULL);
-                timersub(&end, &start, &diff);
-                break;
+                gettimeofday(&countdown,NULL);
+                done = 1;
             }
         }
         if (fds[1].revents && POLLIN) {
@@ -382,7 +385,23 @@ int server_TCP_B(char *port, int info_sock,long bytes_target,long checksum_targe
             bytes_recived += recv(data_sock, buffer, sizeof(buffer), 0);
             checksum_sum += checksum(buffer);
         }
+
+        if(done == 1){
+            int flags = fcntl(data_sock, F_GETFL, 0);
+            fcntl(data_sock, F_SETFL, flags | O_NONBLOCK);
+
+// receive data for one second
+            time_t start_time = time(NULL);
+            while (time(NULL) - start_time <= 1) {
+                bytes_recived += recv(data_sock, buffer, sizeof(buffer), 0);
+                checksum_sum += checksum(buffer);
+                gettimeofday(&temp,NULL);
+                timersub(&temp,&countdown,&tempdiff);
+            }
+            break;
+        }
     }
+    timersub(&end, &start, &diff);
     // compare checksum and bytes
     if(bytes_recived != bytes_target){
         printf("error: did not received full data!");
