@@ -329,8 +329,7 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
 
     char buffer[16384];
     size_t bytes_read;
-    // struct timeval start, end, diff;
-    // gettimeofday(&start,NULL);
+
     while ((bytes_read = fread(buffer, sizeof(buffer), 1, file)) > 0) {
         if (send(data_sock, buffer, bytes_read, 0) == -1) {
             perror("Send failed");
@@ -343,12 +342,43 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
     // int microsec = diff.tv_usec;
 }
 
-int server_TCP_B(char *port, FILE *file) {
+int server_TCP_B(char *port, int info_sock) {
+    struct timeval start, end, diff;
+//     gettimeofday(&start,NULL);
+    data_sock = tcp_server_conn(port); //TODO: close the socket
+    int fd = -1;
+    struct pollfd fds[2];
+    fds[0].fd = info_sock;
+    fds[0].events = POLLIN; // tell me when I can read from it
+    fds[1].fd = data_sock;
+    fds[1].events = POLLIN;
+    while (1) {
+        int err = poll(fds, 2, -1);
+        if (err < 0) {
+            perror("poll failed\n");
+            return 1;
+        }
+        if (fds[0].revents && POLLIN) {
+            //read from the socket
+
+            //if got "start"...
+
+            //if got "end"... break;
+
+        }
+        if (fds[1].revents && POLLIN) {
+            // recive the data and count byts
+        }
+    }
+    // compare checksum and bytes
+    // ok/failed cases
 
 }
 
 int server_B(char *port) {
-    int info_sock = tcp_server_conn(port);
+    char info_port[6];
+    port_for_info(port, info_port);
+    int info_sock = tcp_server_conn(info_port); //TODO: close the sock
     char type[10] = {'\0'};
     char param[30] = {'\0'};
     char checksum_target[16] = {'\0'};
@@ -362,7 +392,7 @@ int server_B(char *port) {
 
     if (strcmp(type, "ipv4") == 0) {
         if (strcmp(param, "tcp") == 0) {
-
+            server_TCP_B(port, info_sock);
         } else if (strcmp(param, "udp") == 0) {
 
         }
@@ -372,21 +402,20 @@ int server_B(char *port) {
         } else if (strcmp(param, "udp") == 0) {
 
         }
-    } else if(strcmp(type,"uds")==0){
+    } else if (strcmp(type, "uds") == 0) {
         if (strcmp(param, "dgram") == 0) {
 
         } else if (strcmp(param, "stream") == 0) {
 
         }
-    } else if(strcmp(type,"mmap")==0){
+    } else if (strcmp(type, "mmap") == 0) {
 
-    } else if(strcmp("pipe")==0){
+    } else if (strcmp("pipe") == 0) {
 
-    } else{
+    } else {
         perror("wrong parameters");
         return 1;
     }
-
 
 
 }
