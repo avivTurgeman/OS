@@ -7,6 +7,9 @@
 #include <poll.h>
 #include <sys/time.h>
 #include <stdint.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
 
 void port_for_info(char *port, char *port_out) {
     int new_port = atoi(port);
@@ -25,15 +28,15 @@ uint32_t checksum(char *str) {
     return sum;
 }
 
-uint32_t checksum_file(File *file, uint32_t *bytes_counter) {
+uint32_t checksum_file(FILE *file, uint32_t *bytes_counter) {
     uint8_t byte;
     uint32_t sum = 0;
     uint32_t count = 0;
-    while (fread(&byte, sizeof(byte), 1, fp) == 1) {
+    while (fread(&byte, sizeof(byte), 1, file) == 1) {
         sum += byte;
         count++;
     }
-    bytes_counter * = count;
+    *bytes_counter  = count;
     return sum;
 }
 
@@ -345,14 +348,16 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
 int server_TCP_B(char *port, int info_sock) {
     struct timeval start, end, diff;
 //     gettimeofday(&start,NULL);
-    data_sock = tcp_server_conn(port); //TODO: close the socket
+    int data_sock = tcp_server_conn(port); //TODO: close the socket
     int fd = -1;
     struct pollfd fds[2];
     fds[0].fd = info_sock;
     fds[0].events = POLLIN; // tell me when I can read from it
     fds[1].fd = data_sock;
     fds[1].events = POLLIN;
+    int bytes_recived = 0;
     while (1) {
+        char buffer[1000]; // 1000 is enough?
         int err = poll(fds, 2, -1);
         if (err < 0) {
             perror("poll failed\n");
@@ -360,14 +365,19 @@ int server_TCP_B(char *port, int info_sock) {
         }
         if (fds[0].revents && POLLIN) {
             //read from the socket
-
-            //if got "start"...
-
-            //if got "end"... break;
-
+            recv(info_sock,buffer,sizeof (buffer),0);
+            if(strcmp(buffer,"start")==0){
+                gettimeofday(&start,NULL);
+            }
+            if(strcmp(buffer,"end")==0){
+                gettimeofday(&end,NULL);
+                break;
+            }
         }
         if (fds[1].revents && POLLIN) {
             // recive the data and count byts
+            bytes_recived += recv(data_sock,buffer,sizeof(buffer),0);
+
         }
     }
     // compare checksum and bytes
@@ -410,7 +420,7 @@ int server_B(char *port) {
         }
     } else if (strcmp(type, "mmap") == 0) {
 
-    } else if (strcmp("pipe") == 0) {
+    } else if (strcmp(type,"pipe") == 0) {
 
     } else {
         perror("wrong parameters");
@@ -530,10 +540,10 @@ int main(int argc, char *argv[]) {
                 perror("File open failed");
                 exit(EXIT_FAILURE);
             }
-            uint32_t bytes_count = 0
+            uint32_t bytes_count = 0;
             int checksum = checksum_file(file, &bytes_count);
 
-            char new_port[6]
+            char new_port[6];
             port_for_info(port, new_port);
             int info_sock = tcp_client_conn(ip, new_port);
 
