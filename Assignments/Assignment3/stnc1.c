@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <unistd.h>
+#define B_SIZE 50000
 
 
 void port_for_info(char *port, char *port_out) {
@@ -24,9 +25,9 @@ void port_for_info(char *port, char *port_out) {
     sprintf(port_out, "%d", new_port);
 }
 
-long checksum(char *str) {
+long checksum(char *str, int limit) {
     long sum = 0;
-    for (int i = 0; str[i] != '\0'; i++) {
+    for (int i = 0; str[i] != '\0' && i < limit; i++) {
         sum += (uint8_t) str[i];
     }
     return sum;
@@ -82,8 +83,10 @@ int IPv4Handler(char *ip) {
     return 1;
 }
 
-int IPv6Handler(char *ip) { // TODO: change the function;
-    return 1;
+int IPv6Handler(char *ip) {
+    struct sockaddr_in6 sa6;
+    int result = inet_pton(AF_INET6, ip, &(sa6.sin6_addr));
+    return result == 1;
 }
 
 
@@ -176,7 +179,7 @@ int tcp_server_conn(char *port) {
         return 1;
     }
     //start listening on the socket (one client at the time)
-    int Lcheck = listen(sock, 1);
+    int Lcheck = listen(sock, 4);
     if (Lcheck == -1) {
         printf("Error in listen().\n");
         return 1;
@@ -190,7 +193,6 @@ int tcp_server_conn(char *port) {
         close(sock);
         return 1;
     }
-    printf("returnd sender sock ( line 192)\n");
 
     return senderSock;
 
@@ -320,11 +322,11 @@ int server_A(char *port) {
 }
 
 //sending on the info socket to the server <type> , <param>, checksum, bytes to send.
-void type_param(int sock, char *type, char *param, int checks, int bytes) {
+void type_param(int sock, char *type, char *param, long checks, long bytes) {
     char checks_str[16] = {'\0'};
     char bytes_str[16] = {'\0'};
-    sprintf(checks_str, "%d", checks);
-    sprintf(bytes_str, "%d", bytes);
+    sprintf(checks_str, "%ld", checks);
+    sprintf(bytes_str, "%ld", bytes);
     char message[100] = {'\0'};
     strcat(message, type);
     strcat(message, ",");
@@ -338,34 +340,28 @@ void type_param(int sock, char *type, char *param, int checks, int bytes) {
 }
 
 int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
-    printf("in 341\n");
     int data_sock = tcp_client_conn(ip, port);
 
-    char buffer[1000];
+    char buffer[B_SIZE];
     size_t bytes_read;
     char *start = "start";
     char *end = "end";
     send(info_sock, start, strlen(start), 0);
-    printf("start sending...\n");
+    fseek(file, 0L, SEEK_SET);
     while (1) {
-        bytes_read = fread(buffer, sizeof(buffer) - 1, 1, file);
-        if (bytes_read < 0) {
-            perror("Error reading file");
-            exit(EXIT_FAILURE);
-        }
+        bytes_read = fread(buffer, 1, B_SIZE, file);
+
         if (bytes_read == 0) {
             // End of file
             break;
         }
-        buffer[bytes_read] = '\0'; // add null terminator
-        if (send(data_sock, buffer, bytes_read + 1, 0) == -1) {
+//        buffer[bytes_read] = '\0'; // add null terminator
+        if (send(data_sock, buffer, bytes_read, 0) == -1) {
             perror("Send failed");
             exit(EXIT_FAILURE);
         }
-        printf("sending\n");
     }
-    usleep(10000);
-    printf("sending end\n");
+
     send(info_sock, end, strlen(end), 0);
 
     close(data_sock);
@@ -373,9 +369,8 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
     return 0;
 }
 
-int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_target) {
+int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_target,int q) {
     struct timeval start, end, diff;
-    printf("opening DATA_SOCK(360 - server)\n");
     int data_sock = tcp_server_conn(port); //TODO: close the socket
 
     struct pollfd fds[2];
@@ -386,42 +381,37 @@ int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_tar
     long bytes_recived = 0;
     long checksum_sum = 0;
     int done = 0;
-    printf("listening... (368)\n");
     int started = 0;
-
-    char buffer[1000]; // 1000 is enough?
+    char buffer[B_SIZE];
+    char buffer_str[B_SIZE+1];
     while (1) {
         memset(buffer, 0, sizeof(buffer));
         int err = poll(fds, 2, -1);
-        printf("poll returned\n");
         if (err < 0) {
             perror("poll failed\n");
             return 1;
         }
         if (fds[0].revents && POLLIN) {
-            printf("pd [0]\n");
             //read from the socket
             if (started)
                 recv(info_sock, buffer, sizeof("start") + 1, 0);
             else
                 recv(info_sock, buffer, sizeof("end") , 0);
-            printf("buffer: %s\n",buffer);
             if (strcmp(buffer, "start") == 0) {
                 gettimeofday(&start, NULL);
-                printf("started\n");
                 started = 1;
             } else if (strcmp(buffer, "end") == 0) {
                 gettimeofday(&end, NULL);
-                printf("ended\n");
                 done = 1;
             }
 
         }
         if (fds[1].revents && POLLIN) {
-            printf("pd[1]\n");
             // recive the data and count byts
             bytes_recived += recv(data_sock, buffer, sizeof(buffer), 0);
-            checksum_sum += checksum(buffer);
+            strcpy(buffer_str,buffer);
+            buffer_str[B_SIZE] = '\0';
+            checksum_sum += checksum(buffer_str,B_SIZE+1);
         }
 
         if (done == 1) {
@@ -436,7 +426,9 @@ int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_tar
                 bytes_temp = recv(data_sock, buffer, sizeof(buffer), 0);
                 if (bytes_temp != 0) {
                     bytes_recived += bytes_temp;
-                    checksum_sum += checksum(buffer);
+                    strcpy(buffer_str,buffer);
+                    buffer_str[B_SIZE] = '\0';
+                    checksum_sum += checksum(buffer_str,B_SIZE+1);
                     gettimeofday(&end, NULL);
                     start_time = time(NULL);
                 }
@@ -444,11 +436,14 @@ int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_tar
             break;
         }
     }
+    close(data_sock);
     timersub(&end, &start, &diff);
+    if(!q) {
+        printf("expected: %ld ,got: %ld\n", bytes_target, bytes_recived);
+    }
 // compare checksum and bytes
     if (bytes_recived != bytes_target) {
         printf("error: did not received full data!\n");
-        printf("expected: %ld ,got: %ld\n", bytes_target, bytes_recived);
         return 1;
     }
     if (checksum_target != checksum_sum) {
@@ -466,10 +461,10 @@ int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_tar
     return 0;
 }
 
-int server_B(char *port) {
+int server_B(char *port,int q) {
     char info_port[6];
     port_for_info(port, info_port);
-    int info_sock = tcp_server_conn(info_port); //TODO: close the sock
+    int info_sock = tcp_server_conn(info_port);
     char message[100] = {'\0'};
 
     recv(info_sock, message, sizeof(message), 0);
@@ -481,14 +476,11 @@ int server_B(char *port) {
 
     long bytes_target_int = atol(bytes_target);
     long checksum_target_int = atol(checksum_target);
-    printf("recived all start info(server 451)\n");
-    printf("type:%s\n", type);
-    printf("param:%s\n", param);
+
     int ret = 0;
     if (strcmp(type, "ipv4") == 0) {
         if (strcmp(param, "tcp") == 0) {
-            printf("tcp ipv4 server(455)\n");
-            ret = server_TCP_B(port, info_sock, bytes_target_int, checksum_target_int);
+            ret = server_TCP_B(port, info_sock, bytes_target_int, checksum_target_int,q);
         } else if (strcmp(param, "udp") == 0) {
 
         }
@@ -512,6 +504,7 @@ int server_B(char *port) {
         perror("wrong parameters");
         return 1;
     }
+    close(info_sock);
     return ret;
 }
 
@@ -634,10 +627,8 @@ int main(int argc, char *argv[]) {
 
 
             if (is_ipv4 && is_tcp) { // ipv4 - tcp
-                printf("ipv4 tcp (598)\n");
                 //socket to notify the receiver to start timing
                 type_param(info_sock, "ipv4", "tcp", checksum, bytes_count);
-                printf("type param sended\n");
                 client_TCP_B(ip, port, info_sock, file);
 
             } else if (is_ipv4 && is_udp) { // ipv4 - udp
@@ -675,8 +666,8 @@ int main(int argc, char *argv[]) {
             }
             fclose(file);
         } else if (is_server) {
-            while (!server_B(port)); //continue as long as server_B returns 0;
-            exit(1);
+            server_B(port,is_q); //continue as long as server_B returns 0;
+            return 0;
         } else {
             usage();
             exit(1);
