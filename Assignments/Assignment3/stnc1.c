@@ -1,11 +1,13 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include<netinet/tcp.h>
 #include<netinet/in.h>
 #include<string.h>
 #include <poll.h>
-#include <sys/time.h>
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -17,6 +19,7 @@
 #define B_SIZE 50000
 #define B_SIZE_UDP 64000
 # define B_SIZE_UDP_IPV6 3000
+#define FIFO_NAME "OS_EX3_pipe"
 
 int ipv6_to_ipv4(char *ipv6_str, char *ipv4_str) {
     struct in6_addr ipv6_addr;
@@ -74,7 +77,7 @@ long checksum_file(FILE *file, long *bytes_counter) {
 int portHandler(int port) {
     if ((port <= 1024) || (port >= 65535)) {
         printf("PORT should be numerical between 1024 and 65535 included\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return 0;
 }
@@ -131,7 +134,7 @@ int tcp_client_conn(char *ip, char *port) {
             int sock = socket(AF_INET, SOCK_STREAM, 0);
             if (sock == -1) {
                 printf("Could not create socket.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             struct sockaddr_in receiver_adderess;
@@ -143,7 +146,7 @@ int tcp_client_conn(char *ip, char *port) {
 
             if (checkP < 0) {
                 printf("inet_pton() FAILED.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             //connecting to the Receiver on the socket
@@ -152,7 +155,7 @@ int tcp_client_conn(char *ip, char *port) {
 
             if (connectCheck == -1) {
                 printf("connect() FAILED.\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             return sock;
         }
@@ -160,26 +163,26 @@ int tcp_client_conn(char *ip, char *port) {
         if (IPv6Handler(ip)) {//need to create IPv6Handler method
             int sock = socket(AF_INET6, SOCK_STREAM, 0);
             if (sock == -1) {
-                perror("socket error");
-                exit(1);
+                perror("socket error\n");
+                exit(EXIT_FAILURE);
             }
             int on = 1;
             if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) == -1) {
-                perror("setsockopt error");
-                exit(1);
+                perror("setsockopt error\n");
+                exit(EXIT_FAILURE);
             }
-            struct addrinfo hints, *res;
-            memset(&hints, 0, sizeof(hints));
-            hints.ai_family = AF_INET6;
-            hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(ip, port, &hints, &res) != 0) {
-                perror("getaddrinfo error");
-                exit(1);
-            }
-            if (connect(sock, res->ai_addr, res->ai_addrlen) == -1) {
-                perror("connect error");
-                exit(1);
-            }
+            // struct addrinfo hints, *res; //tell alon there is an error in hints
+            // memset(&hints, 0, sizeof(hints)); //error on sizeof
+            // hints.ai_family = AF_INET6; //error on hints
+            // hints.ai_socktype = SOCK_STREAM;//error on hints
+            // if (getaddrinfo(ip, port, &hints, &res) != 0) {
+            //     perror("getaddrinfo error");
+            //     exit(EXIT_FAILURE);
+            // }
+            // if (connect(sock, res->ai_addr, res->ai_addrlen) == -1) {
+            //     perror("connect error");
+            //     exit(EXIT_FAILURE);
+            // }
             return sock;
         }
     }
@@ -223,7 +226,6 @@ int tcp_server_conn(char *port) {
     return senderSock;
 
 }
-
 
 void usage() {
     printf("Usage options:\n");
@@ -383,7 +385,7 @@ int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
         }
 //        buffer[bytes_read] = '\0'; // add null terminator
         if (send(data_sock, buffer, bytes_read, 0) == -1) {
-            perror("Send failed");
+            perror("Send failed\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -430,9 +432,8 @@ int server_TCP_B(char *port, int info_sock, long bytes_target, long checksum_tar
                 gettimeofday(&end, NULL);
                 done = 1;
             }
-
         }
-        if (fds[1].revents && POLLIN) {
+        else if (fds[1].revents && POLLIN) {
             // recive the data and count byts
             bytes_recived += recv(data_sock, buffer, sizeof(buffer), 0);
             strcpy(buffer_str, buffer);
@@ -500,7 +501,7 @@ int client_UDP_B(char *ip, char *port, int info_sock, FILE *file) {
     struct sockaddr_in server_addr;
     int data_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (data_sock < 0) {
-        perror("Error creating socket");
+        perror("Error creating socket\n");
         return 1;
     }
     int int_port = atoi(port);
@@ -524,7 +525,7 @@ int client_UDP_B(char *ip, char *port, int info_sock, FILE *file) {
         }
 //        buffer[bytes_read] = '\0'; // add null terminator
         if (sendto(data_sock, buffer, bytes_read, 0, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
-            perror("Send failed");
+            perror("Send failed\n");
             return 1;
         }
     }
@@ -545,7 +546,7 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
     // Creating socket file descriptor
     int data_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (data_sock < 0) {
-        perror("socket creation failed");
+        perror("socket creation failed\n");
         return 1;
     }
 
@@ -562,7 +563,7 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
 
     // Bind the socket with the server address
     if (bind(data_sock, (const struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-        perror("bind failed");
+        perror("bind failed\n");
         return 1;
     }
 
@@ -599,7 +600,7 @@ int server_UDP_B(char *port, int info_sock, long bytes_target, long checksum_tar
                 done = 1;
             }
         }
-        if (fds[1].revents && POLLIN) {
+        else if (fds[1].revents && POLLIN) {
 
             bytes_recived = recvfrom(data_sock, (char *) buffer, B_SIZE_UDP, 0, (struct sockaddr *) &cliaddr, &len);
             strcpy(buffer_str, buffer);
@@ -665,7 +666,7 @@ int client_UDP_IPV6_B(char *ip, char *port, int info_sock, FILE *file) {
     // open udp sock
     int data_sock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (data_sock < 0) {
-        perror("Error creating socket");
+        perror("Error creating socket\n");
         return 1;
     }
     int int_port = atoi(port);
@@ -674,7 +675,7 @@ int client_UDP_IPV6_B(char *ip, char *port, int info_sock, FILE *file) {
     servaddr.sin6_family = AF_INET6;
     servaddr.sin6_port = htons(8080);
     if (inet_pton(AF_INET6, ip, &servaddr.sin6_addr) <= 0) {
-        perror("inet_pton failed");
+        perror("inet_pton failed\n");
         return 1;
     }
     printf("created socket\n");
@@ -694,7 +695,7 @@ int client_UDP_IPV6_B(char *ip, char *port, int info_sock, FILE *file) {
         }
 //        buffer[bytes_read] = '\0'; // add null terminator
         if (sendto(data_sock, buffer, bytes_read, 0, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-            perror("Send failed");
+            perror("Send failed\n");
             return 1;
         }
     }
@@ -714,7 +715,7 @@ int server_UDP_IPV6_B(char *port, int info_sock, long bytes_target, long checksu
     // Creating socket file descriptor
     int data_sock = socket(AF_INET6, SOCK_DGRAM, 0);
     if (data_sock < 0) {
-        perror("socket creation failed");
+        perror("socket creation failed\n");
         return 1;
     }
 
@@ -731,7 +732,7 @@ int server_UDP_IPV6_B(char *port, int info_sock, long bytes_target, long checksu
     servaddr.sin6_port = htons(int_port);
     servaddr.sin6_addr = in6addr_any;
     if (bind(data_sock, (const struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-        perror("bind failed");
+        perror("bind failed\n");
         return 1;
     }
 
@@ -768,7 +769,7 @@ int server_UDP_IPV6_B(char *port, int info_sock, long bytes_target, long checksu
                 done = 1;
             }
         }
-        if (fds[1].revents && POLLIN) {
+        else if (fds[1].revents && POLLIN) {
 
             bytes_recived = recvfrom(data_sock, (char *) buffer, B_SIZE_UDP_IPV6, 0, (struct sockaddr *) &cliaddr,
                                      &len);
@@ -825,6 +826,150 @@ int server_UDP_IPV6_B(char *port, int info_sock, long bytes_target, long checksu
 }
 
 
+
+
+int client_named_pipe(int info_sock ,char *fifo_name, FILE *file, long bytes_target){
+    int fd;
+    long total_bytes = 0;
+    
+    mkfifo(fifo_name, 0666);
+
+    fd = open(fifo_name,O_WRONLY);
+    if(fd == -1){
+        perror("failed to open the pipe\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char buffer[B_SIZE];
+    size_t bytes_read;
+    char *start = "start";
+    char *end = "end";
+    if(send(info_sock, start, strlen(start), 0) == -1){
+        perror("failed sending start\n");
+        exit(1);
+    }
+
+    fseek(file, 0L, SEEK_SET);
+    while (total_bytes < bytes_target) {
+        bytes_read = fread(buffer, 1 , B_SIZE, file);
+        total_bytes += bytes_read;
+        write(fd, buffer, bytes_read);
+    }
+
+    if(send(info_sock, end, strlen(end), 0) == -1){
+        perror("failed sending end\n");
+        exit(1);
+    }
+
+    close(fd);
+    close(info_sock);
+}
+
+int server_named_pipe(int info_sock, char *fifo_name, long bytes_target, long checksum_target, int q){
+    int fd, started = 0, done = 0, i = 0;
+    long bytes_recived = 0, checksum_sum = 0;
+    char buffer[B_SIZE], buffer_str[B_SIZE + 1];
+    
+    mkfifo(fifo_name, 0666);
+
+    fd = open(fifo_name,O_RDONLY);
+    if(fd == -1){
+        perror("failed to open the pipe\n");
+        exit(EXIT_FAILURE);
+    }
+
+    struct timeval start, end, diff;
+    struct pollfd fds[2];
+
+    fds[0].fd = info_sock;
+    fds[0].events = POLLIN;
+    fds[1].fd = fd;
+    fds[1].events = POLLIN;
+
+    while(1){
+        memset(buffer, 0, sizeof(buffer));
+        if(poll(fds, 2, -1) == -1){
+            perror("poll failed\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (fds[0].revents && POLLIN) {
+            //read from the socket
+            if (!started){
+                if(recv(info_sock, buffer, strlen("start") + 1, 0) == -1){
+                    perror("failed receiving start\n");
+                    exit(1);
+                }
+            }else{
+                if(recv(info_sock, buffer, strlen("end") + 1, 0) == -1){
+                    perror("failed receiving end\n");
+                    exit(1);
+                }
+            }
+            if (strcmp(buffer, "start") == 0) {
+                gettimeofday(&start, NULL);
+                started = 1;
+            } else if (strcmp(buffer, "end") == 0) {
+                gettimeofday(&end, NULL);
+                done = 1;
+            }
+        }
+
+        else if(fds[1].revents && POLLIN){
+            while(1){
+                int bytes = read(fd, buffer, sizeof(buffer));
+
+                if(bytes > 0){
+                    bytes_recived += bytes;
+                }
+                else if(bytes == 0){
+                    break;
+                }
+                else{
+                    perror("error while readinf the file\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+            strcpy(buffer_str, buffer);
+            buffer_str[B_SIZE] = '\0';
+            checksum_sum += checksum(buffer_str, B_SIZE + 1);
+        }
+        if(done){
+            break;
+        }
+    }
+    close(fd);
+    timersub(&end, &start, &diff);
+    if (!q) {
+        printf("expected: %ld ,got: %ld\n", bytes_target, bytes_recived);
+    }
+    // compare checksum and bytes
+    if (bytes_recived != bytes_target) {
+        if (!q)
+            printf("error: did not received full data!\n");
+        else
+            printf("failure\n");
+        return 1;
+    }
+    if (checksum_target != checksum_sum) {
+        if (!q) {
+            printf("error: checksum failed\n");
+            printf("expected: %ld ,got: %ld\n", checksum_target, checksum_sum);
+        } else {
+            printf("failure\n");
+        }
+
+        return 1;
+    }
+
+    //print results
+    long microsec = diff.tv_usec;
+    long milisec = microsec / 1000;
+    milisec += diff.tv_sec * 1000;
+    printf("pipe,%ld\n", milisec);
+    return 0;
+}
+
 int server_B(char *port, int q) {
     char info_port[6];
     port_for_info(port, info_port);
@@ -852,16 +997,19 @@ int server_B(char *port, int q) {
     if (strcmp(type, "ipv4") == 0) {
         if (strcmp(param, "tcp") == 0) {
             ret = server_TCP_B(port, info_sock, bytes_target_long, checksum_target_long, q);
+        
         } else if (strcmp(param, "udp") == 0) {
-            server_UDP_B(port, info_sock, bytes_target_long, checksum_target_long, q);
+            ret = server_UDP_B(port, info_sock, bytes_target_long, checksum_target_long, q);
         }
+
     } else if (strcmp(type, "ipv6") == 0) {
         if (strcmp(param, "tcp") == 0) {
 
         } else if (strcmp(param, "udp") == 0) {
             printf("server_UDP_IPV6_B\n");
-            server_UDP_IPV6_B(port, info_sock, bytes_target_long, checksum_target_long, q);
+            ret = server_UDP_IPV6_B(port, info_sock, bytes_target_long, checksum_target_long, q);
         }
+
     } else if (strcmp(type, "uds") == 0) {
         if (strcmp(param, "dgram") == 0) {
 
@@ -871,9 +1019,10 @@ int server_B(char *port, int q) {
     } else if (strcmp(type, "mmap") == 0) {
 
     } else if (strcmp(type, "pipe") == 0) {
+        ret = server_named_pipe(info_sock, FIFO_NAME, bytes_target_long, checksum_target_long, q);
 
     } else {
-        perror("wrong parameters");
+        perror("wrong parameters\n");
         return 1;
     }
     close(info_sock);
@@ -901,7 +1050,7 @@ int main(int argc, char *argv[]) {
     char port[10] = {'\0'};
     if (argc < 3) {
         usage();
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "-c") == 0) {
@@ -916,7 +1065,7 @@ int main(int argc, char *argv[]) {
             is_pipe = 1;
             if (i + 1 >= argc) {
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             strcpy(file_name, argv[i + 1]);
             i++;
@@ -924,7 +1073,7 @@ int main(int argc, char *argv[]) {
             is_mmap = 1;
             if (i + 1 >= argc) {
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             strcpy(file_name, argv[i + 1]);
             i++;
@@ -958,37 +1107,37 @@ int main(int argc, char *argv[]) {
         if (is_c) { //client A
             if (argc != 4) {
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             if (!is_port || !is_ip) {
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             if (client_A(port, ip) != 0)
-                exit(1);
+                exit(EXIT_FAILURE);
 
         } else if (is_server) { // server A
             if (argc != 3) {
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             if (!is_port) {
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             if (server_A(port) != 0)
-                exit(1);
+                exit(EXIT_FAILURE);
         } else {
             usage();
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     } else { // part B
         if (is_c) { // client side
             FILE *file;
             file = fopen("100MB.bin", "rb");
             if (file == NULL) {
-                perror("File open failed");
-                return 1;
+                perror("File open failed\n");
+                exit(EXIT_FAILURE);
             }
             long bytes_count = 0;
             long checksum = checksum_file(file, &bytes_count);
@@ -1034,15 +1183,17 @@ int main(int argc, char *argv[]) {
             } else if (is_mmap) { // mmap
                 //socket to notify the receiver to start timing
                 type_param(info_sock, "mmap", "none", checksum, bytes_count);
+                
 
             } else if (is_pipe) { // pipe
                 //socket to notify the receiver to start timing
                 type_param(info_sock, "pipe", "none", checksum, bytes_count);
+                client_named_pipe(info_sock, FIFO_NAME, file, bytes_count);
 
             } else {
                 fclose(file);
                 usage();
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             fclose(file);
         } else if (is_server) {
@@ -1051,8 +1202,8 @@ int main(int argc, char *argv[]) {
             return 0;
         } else {
             usage();
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
-    exit(1);
+    exit(EXIT_FAILURE);
 }
