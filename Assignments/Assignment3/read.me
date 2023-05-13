@@ -1,0 +1,53 @@
+READ.ME FOR ASSIGNMENT 3:
+
+HOW TO RUN:
+
+first run the command `make` to compile.
+
+PART A USAGE:
+first you will want to run the server and then the client.
+
+for the server side run the command:
+`./stnc -s <PORT>`
+
+for the client side run the command:
+`./stnc -c 127.0.0.1 <PORT>`
+
+#NOTE: both PORT's of the server and the client must be identical.
+
+PART B USAGE:
+first you will want to run the server and then the client.
+
+for the server side run the command:
+`./stnc -s <PORT> -p`
+                                            OR
+`./stnc -s <PORT> -p -q`
+ #NOTE: -q is for quiet mode and can be omitted                            
+
+for the client side there are few commands to choose from depend on the <type> and <param>:
+
+for IPv4 with TCP:
+`./stnc -c 127.0.0.1 <PORT> -p ipv4 tcp`
+
+for IPv4 with UDP:
+`./stnc -c 127.0.0.1 <PORT> -p ipv4 udp`
+
+for IPv6 with TCP:
+`./stnc -c ::1 <PORT> -p ipv6 tcp`
+
+for IPv6 with UDP:
+`./stnc -c ::1 <PORT> -p ipv6 udp`
+
+for UDS with DGRAM:
+`./stnc -c 127.0.0.1 <PORT> -p uds dgram`
+
+for UDS with STREAM:
+`./stnc -c 127.0.0.1 <PORT> -p uds stream`
+
+for named_pipe:
+`./stnc -c 127.0.0.1 <PORT> -p pipe filename`
+
+for mmap:
+`./stnc -c 127.0.0.1 <PORT> -p mmap filename`
+
+#NOTE: both PORT's of the server and the client must be identical.
