@@ -285,7 +285,6 @@ int client_A(char *port, char *ip) {
 }
 
 int server_A(char *port) {
-    // TODO: use tcp_server_conn
     int PORT = atoi(port);
     char IP[] = "0.0.0.0";
     portHandler(PORT);
@@ -376,7 +375,6 @@ void type_param(int sock, char *type, char *param, long checks, long bytes) {
 
     send(sock, message, strlen(message), 0);
 }
-
 
 int client_TCP_B(char *ip, char *port, int info_sock, FILE *file) {
     int data_sock = tcp_client_conn(ip, port);
@@ -519,10 +517,11 @@ int client_TCP_IPV6_B(char *ip, char *port, int info_sock, FILE *file){
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(int_port);
 
-    if (inet_pton(AF_INET6, ip, &addr.sin6_addr) <= 0) {
-        perror("inet_pton error");
-        return 1;
-    }
+
+//    if (inet_pton(AF_INET6, ip, &addr.sin6_addr) <= 0) {
+//        perror("inet_pton error");
+//        return 1;
+//    }
 
 
     if (connect(data_sock, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
@@ -694,7 +693,6 @@ int server_TCP_IPV6_B(char *port, int info_sock, long bytes_target, long checksu
     printf("ipv6_tcp,%ld\n", milisec);
     return 0;
 }
-
 
 int client_UDP_B(char *ip, char *port, int info_sock, FILE *file) {
 
@@ -1106,7 +1104,6 @@ int server_UDS_DGRAM(int info_sock, long bytes_target, long checksum_target, int
         close(sock);
         exit(EXIT_FAILURE);
     }
-    printf("binding complet\n");
 
     struct pollfd fds[2];
     fds[0].fd = info_sock;
@@ -1122,34 +1119,25 @@ int server_UDS_DGRAM(int info_sock, long bytes_target, long checksum_target, int
             close(sock);
             exit(EXIT_FAILURE);
         }
-        else if(i == 0){
-            printf("poll is fine\n");
-            i++;
-        }
 
         if (fds[0].revents && POLLIN) {
             //read from the socket
             if (!started){
-                printf("receiving start\n");
                 recv(info_sock, buffer, strlen("start") + 1, 0);
             }else{
-                printf("receiving end\n");
                 recv(info_sock, buffer, strlen("end") + 1, 0);
             }if (strcmp(buffer, "start") == 0) {
-                printf("got start\n");
                 gettimeofday(&start, NULL);
                 started = 1;
             } else if (strcmp(buffer, "end") == 0) {
-                printf("got end\n");
                 gettimeofday(&end, NULL);
                 done = 1;
             }
         }
 
-        else if (fds[1].revents && POLLIN) {
+        if (fds[1].revents && POLLIN) {
             // recive the data and count byts
             bytes = recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr *) &remote, &remote_len);
-            
             if(bytes < 0){
                 perror("recvfrom");
                 close(sock);
@@ -1369,20 +1357,17 @@ int client_mmap(int info_sock , FILE *file, long bytes_target){
     size_t bytes_read;
     char *start = "start";
     char *end = "end";
-    printf("sending start message\n");
     if(send(info_sock, start, strlen(start), 0) == -1){
         perror("failed sending start");
         exit(EXIT_FAILURE);
     }
 
-    printf("mapping data\n");
     data = mmap(NULL, B_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if(data == MAP_FAILED){
         perror("failed mapping data");
         exit(EXIT_FAILURE);
     }
 
-    printf("done mapping, sending end message\n");
     if(send(info_sock, end, strlen(end), 0) == -1){
         printf("failed!!!\n");
         perror("failed sending end");
@@ -1416,29 +1401,21 @@ int server_mmap(int info_sock, long bytes_target, long checksum_target, int q){
         if (fds[0].revents && POLLIN) {
             //read from the socket
             if (!started){
-                if(i < 1){
-                    printf("not started\n");
-                    i++;
-                }
                 if(recv(info_sock, buffer, strlen("start") + 1, 0) == -1){
-                    printf("BAD!!\n");
                     perror("failed receiving start");
                     exit(EXIT_FAILURE);
                 }
             }else{
                 if(recv(info_sock, buffer, strlen("end") + 1, 0) == -1){
-                    printf("BAD2!!\n");
                     perror("failed receiving end");
                     exit(EXIT_FAILURE);
                 }
             }
             if (strcmp(buffer, "start") == 0) {
                 gettimeofday(&start, NULL);
-                printf("starting clock\n");
                 started = 1;
             } else if (strcmp(buffer, "end") == 0) {
                 gettimeofday(&end, NULL);
-                printf("ending clock\n");
                 done = 1;
             }
         }
@@ -1637,9 +1614,7 @@ int server_named_pipe(int info_sock, char *fifo_name, long bytes_target, long ch
 int server_B(char *port, int q) {
     char info_port[6];
     port_for_info(port, info_port);
-    // printf("info creating:\n");
     int info_sock = tcp_server_conn(info_port);
-    // printf("info created\n");
 
     char message[100] = {'\0'};
 
@@ -1668,9 +1643,8 @@ int server_B(char *port, int q) {
 
     } else if (strcmp(type, "ipv6") == 0) {
         if (strcmp(param, "tcp") == 0) {
-
+            server_TCP_IPV6_B(port,info_sock,bytes_target_long,checksum_target_long,q);
         } else if (strcmp(param, "udp") == 0) {
-            printf("server_UDP_IPV6_B\n");
             ret = server_UDP_IPV6_B(port, info_sock, bytes_target_long, checksum_target_long, q);
         }
 
@@ -1768,7 +1742,6 @@ int main(int argc, char *argv[]) {
             strcpy(port, argv[i]);
         }
     }
-    // printf("ipv6: %d , c: %d, udp: %d\n", is_ipv6, is_c, is_udp);
     if (!is_p) { //part A
         if (is_c) { //client A
             if (argc != 4) {
@@ -1830,12 +1803,10 @@ int main(int argc, char *argv[]) {
             } else if (is_ipv6 && is_tcp) { // ipv6- tcp
                 //socket to notify the receiver to start timing
                 type_param(info_sock, "ipv6", "tcp", checksum, bytes_count);
-
+                client_TCP_IPV6_B(ip,port,info_sock,file);
             } else if (is_ipv6 && is_udp) { // ipv6 - udp
                 //socket to notify the receiver to start timing
-                printf("ipv6 + udp\n");
                 type_param(info_sock, "ipv6", "udp", checksum, bytes_count);
-                printf("tp done\n");
                 client_UDP_IPV6_B(ip, port, info_sock, file);
 
             } else if (is_uds && is_dgram) { // uds dgram
@@ -1865,7 +1836,6 @@ int main(int argc, char *argv[]) {
             }
             fclose(file);
         } else if (is_server) {
-            // printf("server here\n");
             server_B(port, is_q); //continue as long as server_B returns 0;
             return 0;
         } else {
