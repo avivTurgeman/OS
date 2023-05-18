@@ -30,10 +30,12 @@ typedef struct hashMap {
 
 void setNode(struct node* node, int key , void* value);
 void initializeHashMap(struct hashMap* mp);
+void increase_HashMap(struct hashMap* mp,int new_capacity);
 int hashFunction(struct hashMap* mp, int key);
 void insert(struct hashMap* mp, int key, char* value);
 void delete (struct hashMap* mp, int key);
 void* search(struct hashMap* mp, int key);
+
 
 
 #endif

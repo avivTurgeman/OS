@@ -15,6 +15,7 @@ void setNode(struct node* node, int key , void* value)
     node->next = NULL;
 };
 
+
 // like constructor
 void initializeHashMap(struct hashMap* mp)
 {
@@ -27,6 +28,12 @@ void initializeHashMap(struct hashMap* mp)
     mp->arr = (struct node**)malloc(sizeof(struct node*)
                                     * mp->capacity);
 
+}
+
+void increase_HashMap(struct hashMap* mp,int new_capacity){
+    struct node ** new_arr = realloc(mp->arr,sizeof(struct node*) * new_capacity);
+    free(mp->arr);
+    mp->arr = new_arr;
 }
 
 int hashFunction(struct hashMap* mp, int key)
@@ -57,10 +64,10 @@ void insert(struct hashMap* mp, int key, char* value)
     // Getting bucket index for the given
     // key - value pair
     int bucketIndex = hashFunction(mp, key);
-    struct node* newNode = (struct node*)malloc(
+    // Creating a new node
+    struct node* newNode = (struct node*)malloc(sizeof(struct node));
 
-            // Creating a new node
-            sizeof(struct node));
+
 
     // Setting value of node
     setNode(newNode, key, value);
