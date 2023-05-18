@@ -5,20 +5,7 @@
  * base code copied from https://www.geeksforgeeks.org/implementation-of-hash-table-in-c-using-separate-chaining/
  * and changed to generic hash with int keys
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// Linked List node
-struct node {
-
-    // key is string
-    int key;
-
-    // value is also string
-    void* value;
-    struct node* next;
-};
+#include "hash.h"
 
 // like constructor
 void setNode(struct node* node, int key , void* value)
@@ -26,16 +13,6 @@ void setNode(struct node* node, int key , void* value)
     node->key = key;
     node->value = value;
     node->next = NULL;
-};
-
-struct hashMap {
-
-    // Current number of elements in hashMap
-    // and capacity of hashMap
-    int numOfElements, capacity;
-
-    // hold base address array of linked list
-    struct node** arr;
 };
 
 // like constructor

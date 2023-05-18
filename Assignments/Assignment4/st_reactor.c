@@ -3,4 +3,6 @@
 //
 
 #include "st_reactor.h"
+void * createReactor(){
 
+}

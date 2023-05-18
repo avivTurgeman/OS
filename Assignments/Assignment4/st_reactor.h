@@ -4,9 +4,19 @@
 
 #ifndef ASSIGNMENT4_ST_REACTOR_H
 #define ASSIGNMENT4_ST_REACTOR_H
-
+#include "hash.h"
 
 typedef int (*handler_t)(int fd, ...) ;
+
+typedef struct reactor{
+    PhashMap hash;
+
+    void (* stopReactor)(void * this);
+    void (*startReactor)(void* this);
+    void (*addFd)(void * this,int tfd, handler_t handler);
+    void (*WaitFor)(void * this);
+
+} reactor, * preactor ;
 
 void * createReactor();
 
