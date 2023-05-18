@@ -8,7 +8,7 @@
 #include <string.h>
 
 
-struct node {
+typedef struct node {
 
     // key is string
     int key;
@@ -16,7 +16,7 @@ struct node {
     // value is also string
     void* value;
     struct node* next;
-};
+} node, * pnode;
 
 typedef struct hashMap {
 
