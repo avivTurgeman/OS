@@ -5,11 +5,13 @@
 #ifndef ASSIGNMENT4_ST_REACTOR_H
 #define ASSIGNMENT4_ST_REACTOR_H
 #include "hash.h"
+#include <pthread.h>
 
 typedef int (*handler_t)(int fd, ...) ;
 
 typedef struct reactor{
     PhashMap hash;
+    int thread;
 
     void (* stopReactor)(void * this);
     void (*startReactor)(void* this);
