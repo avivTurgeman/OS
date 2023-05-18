@@ -168,39 +168,3 @@ void* search(struct hashMap* mp, int key)
     return NULL;
 }
 
-// Drivers code
-int main()
-{
-
-    // Initialize the value of mp
-    struct hashMap* mp
-            = (struct hashMap*)malloc(sizeof(struct hashMap));
-    initializeHashMap(mp);
-
-    insert(mp, 1, "Anjali");
-    insert(mp, 2, "Vartika");
-    insert(mp, 3, "Manish");
-    insert(mp, 4, "GeeksforGeeks");
-    insert(mp, 5, "Mayank");
-
-    printf("%s\n", (char*)search(mp, 3));
-    printf("%s\n", search(mp, 1));
-    printf("%s\n", search(mp, 2));
-    printf("%s\n", search(mp, 5));
-    printf("%s\n", search(mp, 4));
-
-
-
-    printf("\nAfter deletion : \n");
-
-    // Deletion of key
-    delete (mp, 5);
-    void * optional = search(mp, 5);
-    if(optional == NULL){
-        printf("NULL");
-    }
-    else
-        printf("%s\n",optional );
-
-    return 0;
-}
