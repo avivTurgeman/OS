@@ -23,6 +23,15 @@ void *createReactor() {
     return new_reactor;
 }
 
+void shoutDownReactor(void *this) {
+    stopReactor(this);
+    reactor *r = (reactor *) (this);
+    free(r->hash->arr);
+    free(r->hash);
+    free(r);
+}
+
+
 void stopReactor(void *this) {
     int t = ((preactor) this)->thread;
     if (t != -1) {
@@ -36,7 +45,6 @@ void startReactor(void *this) {
     pthread_t thread;
     pthread_create(&thread, NULL, thread_func, ((preactor) this)->hash);
     ((preactor) this)->thread = thread;
-
 }
 
 void cleanupHandler(void *arg) { //from gpt,  asked it: i want to clean up allocated space before canceling my thread.
@@ -47,7 +55,7 @@ void cleanupHandler(void *arg) { //from gpt,  asked it: i want to clean up alloc
 void *thread_func(void *phash_param) {
     PhashMap phash = phash_param;
     int my_fds_num = 0;
-    struct pollfd *fds = malloc(sizeof(struct pollfd) * (phash->numOfElements)); // todo: free
+    struct pollfd *fds = malloc(sizeof(struct pollfd) * (phash->numOfElements));
 //    struct pollfd fds2[phash->numOfElements];
     int index = 0;
     // fill the fds array
@@ -69,29 +77,56 @@ void *thread_func(void *phash_param) {
     }
 
 
-    pthread_cleanup_push(cleanupHandler, fds);
+    pthread_cleanup_push(cleanupHandler, fds) ;
 
             while (1) {
                 // check for cancel
                 pthread_testcancel();
                 //pool handle
-                int err = poll(fds,my_fds_num,1000);
+                int err = poll(fds, my_fds_num, 1000);
                 if (err < 0) {
                     printf("poll failed\n");
                 }
-                for (int i = 0; i < my_fds_num; ++i) {
-                    if(fds[i].revents && POLLIN){
-                        void* func = search(phash,fds[i].fd);
-                        // todo: convert func to the right function (somehow) and activate it.
+                if (err > 0) {
+                    for (int i = 0; i < my_fds_num; ++i) {
+                        if (fds[i].revents && POLLIN) {
+                            search(phash, fds[i].fd)(fds[i].fd, NULL); //activate the fds function
+                        }
                     }
                 }
-                if(my_fds_num < phash->numOfElements){
-                    //todo: update the fds list
+                if (my_fds_num < phash->numOfElements) {
+                    // update the fds list:
+                    int size = phash->numOfElements;
+                    free(fds);
+                    // resize fds
+                    fds = malloc(sizeof(struct pollfd) * size);
+                    index = 0;
+                    // fill fds up
+                    for (int i = 0; i < phash->capacity; ++i) {
+                        if (phash->arr[i] != NULL) {
+                            pnode temp = phash->arr[i];
+                            do {
+                                fds[index].fd = temp->key;
+                                fds[index].events = POLLIN;
+                                temp = temp->next;
+                                index++;
+                            } while (temp != NULL);
+                        }
+                    }
+                    my_fds_num = index;
                 }
-
             }
     pthread_cleanup_pop(1);
 
 }
 
+void addFd(void *this, int fd, handler_t handler) {
+    reactor * r = (reactor *)this;
+    insert(r->hash,fd,handler);
+}
+
+void WaitFor(void * this){
+    reactor * r  = (reactor *)this;
+    pthread_join(r->thread,NULL );
+}
 

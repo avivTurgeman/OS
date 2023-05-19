@@ -3,12 +3,12 @@
 //
 /*
  * base code copied from https://www.geeksforgeeks.org/implementation-of-hash-table-in-c-using-separate-chaining/
- * and changed to generic hash with int keys
+ * and changed to fit for us
  */
 #include "hash.h"
 
 // like constructor
-void setNode(struct node* node, int key , void* value)
+void setNode(struct node* node, int key , handler_t value)
 {
     node->key = key;
     node->value = value;
@@ -58,7 +58,7 @@ int hashFunction(struct hashMap* mp, int key)
     return bucketIndex;
 }
 
-void insert(struct hashMap* mp, int key, char* value)
+void insert(struct hashMap* mp, int key, handler_t value)
 {
 
     // Getting bucket index for the given
@@ -127,7 +127,7 @@ void delete (struct hashMap* mp, int key)
     }
 }
 
-void* search(struct hashMap* mp, int key)
+handler_t search(struct hashMap* mp, int key)
 {
 
     // Getting the bucket index

@@ -7,7 +7,7 @@
 #include "hash.h"
 #include <pthread.h>
 
-typedef int (*handler_t)(int fd, ...) ;
+typedef int (*handler_t)(int fd, void * args ) ;
 
 typedef struct reactor{
     PhashMap hash;

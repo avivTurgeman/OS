@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+typedef int (*handler_t)(int fd, void * args ) ;
 
 
 typedef struct node {
@@ -14,7 +15,7 @@ typedef struct node {
     int key;
 
     // value is also string
-    void* value;
+    handler_t value;
     struct node* next;
 } node, * pnode;
 
@@ -28,13 +29,13 @@ typedef struct hashMap {
     struct node** arr;
 } hashMap, * PhashMap;
 
-void setNode(struct node* node, int key , void* value);
+void setNode(struct node* node, int key , handler_t value);
 void initializeHashMap(struct hashMap* mp);
 void increase_HashMap(struct hashMap* mp,int new_capacity);
 int hashFunction(struct hashMap* mp, int key);
-void insert(struct hashMap* mp, int key, char* value);
+void insert(struct hashMap* mp, int key, handler_t value);
 void delete (struct hashMap* mp, int key);
-void* search(struct hashMap* mp, int key);
+handler_t search(struct hashMap* mp, int key);
 
 
 
