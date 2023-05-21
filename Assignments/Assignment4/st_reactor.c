@@ -11,14 +11,14 @@ void *createReactor() {
     preactor new_reactor = malloc(sizeof(reactor));
     new_reactor->thread = -1;
 
+    PhashMap hashMap = malloc(sizeof(hashMap));
+    initializeHashMap(hashMap);
+    new_reactor->hash = hashMap;
+
     new_reactor->WaitFor = WaitFor;
     new_reactor->addFd = addFd;
     new_reactor->startReactor = startReactor;
     new_reactor->stopReactor = stopReactor;
-
-    PhashMap hashMap = malloc(sizeof(hashMap));
-    initializeHashMap(hashMap);
-    new_reactor->hash = hashMap;
 
     return new_reactor;
 }
@@ -30,7 +30,6 @@ void shoutDownReactor(void *this) {
     free(r->hash);
     free(r);
 }
-
 
 void stopReactor(void *this) {
     int t = ((preactor) this)->thread;

@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-typedef int (*handler_t)(int fd, void * args ) ;
+typedef void (*handler_t)(int fd, void * args ) ;
 
 
 typedef struct node {
