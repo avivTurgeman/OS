@@ -87,6 +87,7 @@ void insert(struct hashMap* mp, int key, handler_t value)
         newNode->next = mp->arr[bucketIndex];
         mp->arr[bucketIndex] = newNode;
     }
+    mp->numOfElements++;
 }
 
 void delete (struct hashMap* mp, int key)

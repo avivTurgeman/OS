@@ -4,6 +4,7 @@
 
 #include "st_reactor.h"
 #include <poll.h>
+#define DEBUG(stage) printf("DEBUG: %s\n",stage)
 
 void *thread_func(void *phash);
 

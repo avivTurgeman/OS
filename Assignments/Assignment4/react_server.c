@@ -12,6 +12,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include "st_reactor.h"
+#include "poll.h"
+
+#define DEBUG(stage) printf("DEBUG: %s\n",stage)
 
 #define PORT "9034"   // port we're listening on
 
