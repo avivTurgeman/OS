@@ -1,8 +1,10 @@
 //
 // Created by alon on 5/31/23.
 //
-#include <math.h>
 // from gpt, request: write me a function in C that gets Unsigned int and checks if it's a prime number.
+
+#include "Part_A.h"
+
 int isPrime(unsigned int num) {
     if (num < 2) {
         return 0;

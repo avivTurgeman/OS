@@ -7,18 +7,28 @@
 
 #include "queue.h"
 
+struct AO;
+typedef struct param{
+    struct AO* this;
+    struct AO * next;
+    int N;
+    int seed;
+    int * flag;
+
+} param,*pparam;
+
 typedef struct AO{
     pthread_t thread;
     Queue * queue;
-    int (*func)(int,struct AO*);
+    void (*func)(int,pparam);
     Queue* (*getQueue)(struct AO this);
     void (*stop)(struct AO this);
-    struct AO * next;
 
 }AO;
 
-int threadFunction(AO *ao);
-AO *CreateActiveObject(int (*func)(int, AO*),AO *);
+
+void threadFunction(void *);
+AO *CreateActiveObject(void (*func)(int, pparam),pparam p);
 void cleanupHandler(void * vao);
 
 

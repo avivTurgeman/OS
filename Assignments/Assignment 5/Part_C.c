@@ -18,7 +18,9 @@ void cleanupHandler(void * vao) {
     free(ao);
 }
 
-int threadFunction(AO *this) {
+void threadFunction(void * p2) {
+    pparam p = (pparam) p2;
+    AO * this = p->this;
     pthread_cleanup_push(cleanupHandler, this) ;
 
             while (1) {
@@ -26,17 +28,17 @@ int threadFunction(AO *this) {
                 pthread_testcancel();
                 void *v = dequeue(this->queue);
                 int *pnum = (int *) v;
-                this->func(*pnum,this->next);
+                this->func(*pnum, p);
             }
     pthread_cleanup_pop(1);
 }
 
-AO *CreateActiveObject(int (*func)(int,AO *next),AO*  next) {
+AO *CreateActiveObject(void (*func)(int,pparam),pparam p) {
     AO *ao = malloc(sizeof(AO));
     initializeQueue(ao->queue);
     ao->func = func;
-    ao->next = next;
-    pthread_create(&(ao->thread), NULL, (void *(*)(void *)) threadFunction, ao);
+    p->this = ao;
+    pthread_create(&(ao->thread), NULL, (void *(*)(void *)) threadFunction, &p);
 
     return ao;
 }
