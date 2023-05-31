@@ -15,13 +15,10 @@ typedef struct AO{
     void (*stop)(struct AO this);
 
 }AO;
-Queue * getQueue(struct AO this){
-    return this.queue;
-}
-void stop(struct AO this){
-    pthread_cancel(this.thread); // ask the thread to stop
-    pthread_join(this.thread, NULL); // wait until the thread will stop
-}
+
+int threadFunction(AO *ao);
+AO *CreateActiveObject(int (*func)(int));
+void cleanupHandler(void * vao);
 
 
 #endif //ASSIGNMENT_5_PART_C_H
