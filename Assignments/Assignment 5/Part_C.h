@@ -10,14 +10,15 @@
 typedef struct AO{
     pthread_t thread;
     Queue * queue;
-    int (*func)(int);
+    int (*func)(int,struct AO*);
     Queue* (*getQueue)(struct AO this);
     void (*stop)(struct AO this);
+    struct AO * next;
 
 }AO;
 
 int threadFunction(AO *ao);
-AO *CreateActiveObject(int (*func)(int));
+AO *CreateActiveObject(int (*func)(int, AO*),AO *);
 void cleanupHandler(void * vao);
 
 
