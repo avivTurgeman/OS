@@ -15,11 +15,16 @@ typedef struct Node {
     struct Node* next;
 } Node;
 
-typedef struct {
+typedef struct Queue {
     Node* front;
     Node* rear;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
+    void (*initializeQueue)(struct Queue* queue);
+    bool (*isEmpty)(struct Queue* queue);
+    void (*enqueue)(struct Queue* queue, void* data);
+    void* (*dequeue)(struct Queue* queue);
+    void (*destroyQueue)(struct Queue* queue);
 } Queue;
 
 void initializeQueue(Queue* queue);
