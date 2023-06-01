@@ -21,7 +21,7 @@ typedef struct AO{
     pthread_t thread;
     Queue * queue;
     void (*func)(int,pparam);
-    Queue* (*getQueue)(struct AO this);
+    Queue* (*getQueue)(struct AO * this);
     void (*stop)(struct AO this);
 
 }AO;

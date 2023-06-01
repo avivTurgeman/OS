@@ -12,6 +12,10 @@
 
 
 void initializeQueue(Queue* queue) {
+    queue->isEmpty = isEmpty;
+    queue->enqueue = enqueue;
+    queue->dequeue = dequeue;
+    queue->destroyQueue = destroyQueue;
     queue->front = NULL;
     queue->rear = NULL;
     pthread_mutex_init(&queue->mutex, NULL);
@@ -47,6 +51,12 @@ void* dequeue(Queue* queue) {
     while (isEmpty(queue)) {
         pthread_cond_wait(&queue->cond, &queue->mutex);
     }
+    int i = 0;
+    Node * temp = queue->front;
+    while (temp!= NULL){
+        temp = temp->next;
+        i++;
+    }
 
     Node* frontNode = queue->front;
     void* data = frontNode->data;
@@ -70,4 +80,20 @@ void destroyQueue(Queue* queue) {
 
     pthread_cond_destroy(&queue->cond);
     pthread_mutex_destroy(&queue->mutex);
+}
+void printQueue(Queue * queue){
+    int i = 0;
+    Node * temp = queue->front;
+    while (temp!= NULL){
+        if(temp->data == NULL){
+            printf("data of %d: NULL\n",i);
+        }
+        else {
+            printf("data of %d:\n", i);
+        }
+        temp = temp->next;
+        i++;
+    }
+    printf("size: %d\n",i);
+
 }

@@ -20,7 +20,6 @@ typedef struct Queue {
     Node* rear;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    void (*initializeQueue)(struct Queue* queue);
     bool (*isEmpty)(struct Queue* queue);
     void (*enqueue)(struct Queue* queue, void* data);
     void* (*dequeue)(struct Queue* queue);
@@ -32,5 +31,6 @@ bool isEmpty(Queue* queue);
 void enqueue(Queue* queue, void* data);
 void* dequeue(Queue* queue);
 void destroyQueue(Queue* queue);
+void printQueue(Queue * queue);
 
 #endif //ASSIGNMENT_5_QUEUE_H
