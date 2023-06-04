@@ -1,6 +1,3 @@
-//
-// Created by alon on 5/31/23.
-//
 // from gpt, request: write me a function in C that gets Unsigned int and checks if it's a prime number.
 
 #include "Part_A.h"

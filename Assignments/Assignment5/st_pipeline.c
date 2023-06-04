@@ -1,7 +1,3 @@
-//
-// Created by alon on 5/31/23.
-//
-
 #include "st_pipeline.h"
 
 int generateRandomNumber() {

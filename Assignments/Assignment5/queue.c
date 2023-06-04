@@ -1,7 +1,3 @@
-//
-// Created by alon on 5/31/23.
-//
-
 // from gpt. request 1: write for me a threads safe queue in C. the queue should hold void*.
 //           request 2: now i want u to improve  this queue: the new queue will use cond to
 //                     let the threads that try to dequeue not wait on busy loop( if the queue

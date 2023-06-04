@@ -1,7 +1,3 @@
-//
-// Created by alon on 5/31/23.
-//
-
 #ifndef ASSIGNMENT_5_PART_C_H
 #define ASSIGNMENT_5_PART_C_H
 
