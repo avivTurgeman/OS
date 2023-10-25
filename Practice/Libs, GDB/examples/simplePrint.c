@@ -21,7 +21,7 @@ void printLong(){
 
 int main()
 {
-        printf("pid: %ld  , ppid %ld \n", (long)getpid(), (long)getppid());
+    printf("pid: %ld  , ppid %ld \n", (long)getpid(), (long)getppid());
 	print(getNum());
 	//printLong();
 	return 0;
